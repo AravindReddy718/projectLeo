@@ -5,6 +5,9 @@ import StudentDashboard from './pages/student/Dashboard'
 import ClerkDashboard from './pages/clerk/Dashboard'
 import WardenDashboard from './pages/warden/dashboard'
 import ProtectedRoute from './components/auth/ProtectedRoute'  // Default import
+// ...existing code...
+import LandingPage from './pages/LandingPage' // added import
+// ...existing code...
 
 export default function AppRouter() {
   const { user } = useAuth()
@@ -22,31 +25,11 @@ export default function AppRouter() {
           <StudentDashboard />
         </ProtectedRoute>
       } />
+      {/* ...existing routes... */}
       
-      <Route path="/clerk/dashboard" element={
-        <ProtectedRoute allowedRoles={['clerk']}>
-          <ClerkDashboard />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/warden/dashboard" element={
-        <ProtectedRoute allowedRoles={['warden']}>
-          <WardenDashboard />
-        </ProtectedRoute>
-      } />
-      
-      {/* Add other roles as needed */}
-      <Route path="/mess-manager/dashboard" element={
-        <ProtectedRoute allowedRoles={['mess-manager']}>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold">Mess Manager Dashboard - Coming Soon</h1>
-          </div>
-        </ProtectedRoute>
-      } />
-      
-      {/* Default redirect */}
+      {/* Default route: show landing page to unauthenticated users */}
       <Route path="/" element={
-        user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <Navigate to="/login" replace />
+        user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <LandingPage />
       } />
       
       {/* Catch all route */}

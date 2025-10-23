@@ -1,15 +1,19 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
-
+/*
+  Temporary stub: keep this file while you remove all imports/usages across the repo.
+  Run:
+    grep -R --line-number "Navigation" src
+  For each reported file:
+    - remove the import line, e.g. `import Navigation from '.../Navigation'`
+    - remove the JSX usage `<Navigation />` (or replace with your alternative)
+  After all references are removed:
+    git rm "src/components/common/Navigation.jsx"
+    git commit -m "chore: remove Navigation component"
+*/
 export default function Navigation() {
-  return (
-    <nav className="bg-blue-600 text-white p-4">
-      <div className="container mx-auto flex gap-6">
-        <Link to="/login" className="hover:underline">Login Page</Link>
-        <Link to="/student/dashboard" className="hover:underline">Student Dashboard</Link>
-        <Link to="/clerk/dashboard" className="hover:underline">Clerk Dashboard</Link>
-        <Link to="/warden/dashboard" className="hover:underline">Warden Dashboard</Link>
-      </div>
-    </nav>
-  )
+  // warn so you can spot remaining usages at runtime
+  if (typeof console !== 'undefined') {
+    console.warn('[Navigation] component has been removed. Remove imports/usages and delete this file.')
+  }
+  return null
 }

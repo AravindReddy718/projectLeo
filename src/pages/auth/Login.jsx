@@ -1,12 +1,11 @@
 import React, { useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'  // Fixed import path
+import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import './Login.css'
 
 function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [hall, setHall] = useState('')
   const { login } = useAuth()
   const navigate = useNavigate()
 
@@ -35,13 +34,16 @@ function Login() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1>🏛️ IIT Hostel Management</h1>
+          <div className="logo">
+            <i className="fas fa-university"></i>
+          </div>
+          <h1>IIT Hostel Management</h1>
           <p>Portal System</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="input-group">
-            <label>📧 Email</label>
+            <label>Email Address</label>
             <input
               type="email"
               value={email}
@@ -52,7 +54,7 @@ function Login() {
           </div>
 
           <div className="input-group">
-            <label>🔒 Password</label>
+            <label>Password</label>
             <input
               type="password"
               value={password}
@@ -62,26 +64,17 @@ function Login() {
             />
           </div>
 
-          <div className="input-group">
-            <label>🏠 Hall</label>
-            <select value={hall} onChange={(e) => setHall(e.target.value)} required>
-              <option value="">Select Hall</option>
-              <option value="Hall 1">Hall 1</option>
-              <option value="Hall 2">Hall 2</option>
-              <option value="Hall 5">Hall 5</option>
-              <option value="Hall 7">Hall 7</option>
-            </select>
-          </div>
-
           <button type="submit" className="login-btn">
             Sign In
           </button>
         </form>
 
         <div className="login-footer">
-          <p>Test Credentials:</p>
-          <p>student@iit.ac.in / clerk@iit.ac.in / warden@iit.ac.in</p>
-          <p>Password: password</p>
+          <p><strong>Test Credentials:</strong></p>
+          <div className="credentials">
+            <p>student@iit.ac.in | clerk@iit.ac.in | warden@iit.ac.in</p>
+            <p><strong>Password:</strong> password</p>
+          </div>
         </div>
       </div>
     </div>
