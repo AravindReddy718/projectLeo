@@ -1,40 +1,61 @@
-import React from 'react'
-import { useAuth } from '../../contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import './Header.css';
 
 export default function Header() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
+    logout();
+    navigate('/login');
+  };
+
+  const getRoleDisplay = (role) => {
+    const roleMap = {
+      'student': 'Student',
+      'clerk': 'Hall Clerk', 
+      'warden': 'Warden',
+      'mess-manager': 'Mess Manager',
+      'chairman': 'HMC Chairman',
+      'controlling-warden': 'Controlling Warden'
+    };
+    return roleMap[role] || role;
+  };
+
+  const showBackButton = !location.pathname.includes('/dashboard');
 
   return (
-    <header className="bg-white shadow-sm border-b px-6 py-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold text-gray-800">
-            🏛️ IIIT HMC Portal
-          </h1>
-          <p className="text-sm text-gray-600">
-            Welcome, {user?.name} ({user?.role}) | Hall: {user?.hall}
-          </p>
+    <header className="header">
+      <div className="header-content">
+        <div className="header-left">
+          {showBackButton && (
+            <button 
+              className="btn btn-secondary back-btn"
+              onClick={() => navigate(`/${user?.role}/dashboard`)}
+            >
+              ← Dashboard
+            </button>
+          )}
+          <div className="header-info">
+            <h1 className="header-title">🏛️ IIT HMC Portal</h1>
+            <p className="header-subtitle">
+              Welcome, {user?.name} • {getRoleDisplay(user?.role)} • Hall: {user?.hall}
+            </p>
+          </div>
         </div>
         
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">
-            {user?.role.charAt(0).toUpperCase() + user?.role.slice(1)}
-          </span>
+        <div className="header-right">
           <button 
             onClick={handleLogout}
-            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm"
+            className="btn btn-danger"
           >
             Logout
           </button>
         </div>
       </div>
     </header>
-  )
+  );
 }
