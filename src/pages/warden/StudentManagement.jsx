@@ -1,370 +1,246 @@
-// import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Layout from '../../components/common/Layout';
+import './StudentManagement.css';
 
-// const StudentManagement = () => {
-//   const [students, setStudents] = useState([
-//     {
-//       id: 'STU001',
-//       name: 'John Doe',
-//       email: 'john@email.com',
-//       phone: '+91 9876543210',
-//       roomNumber: '101',
-//       course: 'Computer Science',
-//       year: '3rd Year',
-//       status: 'Active'
-//     },
-//     {
-//       id: 'STU002',
-//       name: 'Jane Smith',
-//       email: 'jane@email.com',
-//       phone: '+91 9876543211',
-//       roomNumber: '102',
-//       course: 'Electrical Engineering',
-//       year: '2nd Year',
-//       status: 'Active'
-//     },
-//     {
-//       id: 'STU003',
-//       name: 'Mike Johnson',
-//       email: 'mike@email.com',
-//       phone: '+91 9876543212',
-//       roomNumber: '201',
-//       course: 'Mechanical Engineering',
-//       year: '4th Year',
-//       status: 'Inactive'
-//     }
-//   ]);
-  
-//   const [showModal, setShowModal] = useState(false);
-//   const [editingStudent, setEditingStudent] = useState(null);
-//   const [searchTerm, setSearchTerm] = useState('');
-//   const [filterStatus, setFilterStatus] = useState('All');
-  
-//   const [newStudent, setNewStudent] = useState({
-//     name: '',
-//     email: '',
-//     phone: '',
-//     roomNumber: '',
-//     course: '',
-//     year: '1st Year',
-//     status: 'Active'
-//   });
+const StudentManagement = () => {
+  const [students, setStudents] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState({
+    hall: 'all',
+    department: 'all',
+    status: 'all'
+  });
+  const navigate = useNavigate();
 
-//   // Generate unique student ID
-//   const generateStudentId = () => {
-//     const nextId = students.length + 1;
-//     return `STU${nextId.toString().padStart(3, '0')}`;
-//   };
+  useEffect(() => {
+    // Mock data with all profile fields
+    const mockStudents = [
+      {
+        id: '2024CS10001',
+        name: 'Amit Kumar',
+        rollNumber: '2024CS10001',
+        admissionNo: 'ADM202400125',
+        email: 'amit.kumar@iit.ac.in',
+        contactNumber: '9876543210',
+        permanentAddress: '123 Main Street, Delhi, India - 110001',
+        hall: 'Hall 5',
+        roomNo: 'G-102',
+        roomRent: 750,
+        amenitiesFee: 300,
+        wardenName: 'Dr. Priya Sharma',
+        wardenContact: 'warden.h5@iit.ac.in',
+        department: 'Computer Science',
+        course: 'B.Tech',
+        semester: '3rd',
+        bloodGroup: 'O+',
+        emergencyContact: '9876543211',
+        parentName: 'Rajesh Kumar',
+        status: 'Active'
+      }
+    ];
+    setStudents(mockStudents);
+  }, []);
 
-//   // Handle add student
-//   const handleAddStudent = () => {
-//     if (!newStudent.name || !newStudent.email || !newStudent.roomNumber) {
-//       alert('Please fill in all required fields');
-//       return;
-//     }
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = 
+      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.rollNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesHall = filters.hall === 'all' || student.hall === filters.hall;
+    const matchesDept = filters.department === 'all' || student.department === filters.department;
+    const matchesStatus = filters.status === 'all' || student.status === filters.status;
+    return matchesSearch && matchesHall && matchesDept && matchesStatus;
+  });
 
-//     const student = {
-//       id: generateStudentId(),
-//       ...newStudent
-//     };
+  const handleViewDetails = (student) => {
+    setSelectedStudent(student);
+    setShowModal(true);
+  };
 
-//     setStudents([...students, student]);
-//     resetForm();
-//     setShowModal(false);
-//   };
+  return (
+    <Layout>
+      <div className="students-content">
+        <div className="page-header">
+          <h1 className="page-title">Student Management</h1>
+        </div>
 
-//   // Handle edit student
-//   const handleEditStudent = (student) => {
-//     setEditingStudent(student);
-//     setNewStudent({
-//       name: student.name,
-//       email: student.email,
-//       phone: student.phone,
-//       roomNumber: student.roomNumber,
-//       course: student.course,
-//       year: student.year,
-//       status: student.status
-//     });
-//     setShowModal(true);
-//   };
+        {/* Search and Filters */}
+        <div className="filters-section">
+          <div className="search-box">
+            <input
+              type="text"
+              placeholder="Search students..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <span className="search-icon">🔍</span>
+          </div>
 
-//   // Handle update student
-//   const handleUpdateStudent = () => {
-//     if (!newStudent.name || !newStudent.email || !newStudent.roomNumber) {
-//       alert('Please fill in all required fields');
-//       return;
-//     }
+          <div className="filter-grid">
+            <div className="filter-group">
+              <label>Hall</label>
+              <select 
+                value={filters.hall}
+                onChange={(e) => setFilters({...filters, hall: e.target.value})}
+              >
+                <option value="all">All Halls</option>
+                <option value="Hall 5">Hall 5</option>
+                <option value="Hall 3">Hall 3</option>
+              </select>
+            </div>
 
-//     const updatedStudents = students.map(student =>
-//       student.id === editingStudent.id
-//         ? { ...student, ...newStudent }
-//         : student
-//     );
+            <div className="filter-group">
+              <label>Department</label>
+              <select 
+                value={filters.department}
+                onChange={(e) => setFilters({...filters, department: e.target.value})}
+              >
+                <option value="all">All Departments</option>
+                <option value="Computer Science">Computer Science</option>
+                <option value="Electrical Engineering">Electrical Engineering</option>
+              </select>
+            </div>
 
-//     setStudents(updatedStudents);
-//     resetForm();
-//     setShowModal(false);
-//   };
+            <div className="filter-group">
+              <label>Status</label>
+              <select 
+                value={filters.status}
+                onChange={(e) => setFilters({...filters, status: e.target.value})}
+              >
+                <option value="all">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
-//   // Handle delete student
-//   const handleDeleteStudent = (studentId) => {
-//     if (window.confirm('Are you sure you want to delete this student?')) {
-//       const updatedStudents = students.filter(student => student.id !== studentId);
-//       setStudents(updatedStudents);
-//     }
-//   };
+        {/* Students Table */}
+        <div className="table-container">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Roll Number</th>
+                <th>Name</th>
+                <th>Department</th>
+                <th>Hall & Room</th>
+                <th>Contact</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredStudents.map(student => (
+                <tr key={student.id}>
+                  <td>{student.rollNumber}</td>
+                  <td>
+                    <div className="student-info">
+                      <div className="student-avatar">
+                        {student.name.charAt(0)}
+                      </div>
+                      {student.name}
+                    </div>
+                  </td>
+                  <td>{student.department}</td>
+                  <td>
+                    <span className="room-badge">{student.hall} - {student.roomNo}</span>
+                  </td>
+                  <td>{student.contactNumber}</td>
+                  <td>
+                    <span className={`status-badge status-${student.status.toLowerCase()}`}>
+                      {student.status}
+                    </span>
+                  </td>
+                  <td>
+                    <button 
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleViewDetails(student)}
+                    >
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-//   // Handle input change
-//   const handleInputChange = (e) => {
-//     const { name, value } = e.target;
-//     setNewStudent(prev => ({
-//       ...prev,
-//       [name]: value
-//     }));
-//   };
+        {/* Student Details Modal */}
+        {showModal && selectedStudent && (
+          <div className="modal-overlay">
+            <div className="modal student-details-modal">
+              <div className="modal-header">
+                <h3>Student Profile - {selectedStudent.name}</h3>
+                <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
+              </div>
+              <div className="modal-body">
+                <div className="profile-section">
+                  <h4>Personal Information</h4>
+                  <div className="info-grid">
+                    <div className="info-item">
+                      <label>Full Name</label>
+                      <span>{selectedStudent.name}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>Roll Number</label>
+                      <span>{selectedStudent.rollNumber}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>Email</label>
+                      <span>{selectedStudent.email}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>Contact</label>
+                      <span>{selectedStudent.contactNumber}</span>
+                    </div>
+                  </div>
+                </div>
 
-//   // Reset form
-//   const resetForm = () => {
-//     setNewStudent({
-//       name: '',
-//       email: '',
-//       phone: '',
-//       roomNumber: '',
-//       course: '',
-//       year: '1st Year',
-//       status: 'Active'
-//     });
-//     setEditingStudent(null);
-//   };
+                <div className="profile-section">
+                  <h4>Academic Information</h4>
+                  <div className="info-grid">
+                    <div className="info-item">
+                      <label>Department</label>
+                      <span>{selectedStudent.department}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>Course</label>
+                      <span>{selectedStudent.course}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>Semester</label>
+                      <span>{selectedStudent.semester}</span>
+                    </div>
+                  </div>
+                </div>
 
-//   // Close modal
-//   const handleCloseModal = () => {
-//     setShowModal(false);
-//     resetForm();
-//   };
+                <div className="profile-section">
+                  <h4>Hall Information</h4>
+                  <div className="info-grid">
+                    <div className="info-item">
+                      <label>Hall</label>
+                      <span>{selectedStudent.hall}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>Room Number</label>
+                      <span>{selectedStudent.roomNo}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </Layout>
+  );
+};
 
-//   // Filter students based on search and status
-//   const filteredStudents = students.filter(student => {
-//     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-//                          student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-//                          student.roomNumber.toLowerCase().includes(searchTerm.toLowerCase());
-//     const matchesStatus = filterStatus === 'All' || student.status === filterStatus;
-//     return matchesSearch && matchesStatus;
-//   });
-
-//   return (
-//     <div className="students-content">
-//       <div className="content-header">
-//         <h2>Student Management</h2>
-//         <div className="header-actions">
-//           <div className="search-box">
-//             <input
-//               type="text"
-//               placeholder="Search students..."
-//               value={searchTerm}
-//               onChange={(e) => setSearchTerm(e.target.value)}
-//             />
-//             <span className="search-icon">🔍</span>
-//           </div>
-//           <select 
-//             className="filter-select"
-//             value={filterStatus}
-//             onChange={(e) => setFilterStatus(e.target.value)}
-//           >
-//             <option value="All">All Status</option>
-//             <option value="Active">Active</option>
-//             <option value="Inactive">Inactive</option>
-//             <option value="Graduated">Graduated</option>
-//           </select>
-//           <button 
-//             className="btn-primary" 
-//             onClick={() => setShowModal(true)}
-//           >
-//             + Add Student
-//           </button>
-//         </div>
-//       </div>
-
-//       <div className="table-container">
-//         <table className="data-table">
-//           <thead>
-//             <tr>
-//               <th>Student ID</th>
-//               <th>Name</th>
-//               <th>Email</th>
-//               <th>Phone</th>
-//               <th>Room No.</th>
-//               <th>Course</th>
-//               <th>Year</th>
-//               <th>Status</th>
-//               <th>Actions</th>
-//             </tr>
-//           </thead>
-//           <tbody>
-//             {filteredStudents.map(student => (
-//               <tr key={student.id}>
-//                 <td>{student.id}</td>
-//                 <td>
-//                   <div className="student-info">
-//                     <div className="student-avatar">
-//                       {student.name.charAt(0)}
-//                     </div>
-//                     {student.name}
-//                   </div>
-//                 </td>
-//                 <td>{student.email}</td>
-//                 <td>{student.phone}</td>
-//                 <td>
-//                   <span className="room-badge">{student.roomNumber}</span>
-//                 </td>
-//                 <td>{student.course}</td>
-//                 <td>{student.year}</td>
-//                 <td>
-//                   <span className={`status-badge status-${student.status.toLowerCase()}`}>
-//                     {student.status}
-//                   </span>
-//                 </td>
-//                 <td>
-//                   <div className="action-buttons">
-//                     <button 
-//                       className="btn-icon btn-edit"
-//                       onClick={() => handleEditStudent(student)}
-//                       title="Edit"
-//                     >
-//                       ✏️
-//                     </button>
-//                     <button 
-//                       className="btn-icon btn-delete"
-//                       onClick={() => handleDeleteStudent(student.id)}
-//                       title="Delete"
-//                     >
-//                       🗑️
-//                     </button>
-//                   </div>
-//                 </td>
-//               </tr>
-//             ))}
-//           </tbody>
-//         </table>
-        
-//         {filteredStudents.length === 0 && (
-//           <div className="empty-state">
-//             <div className="empty-icon">👨‍🎓</div>
-//             <h3>No students found</h3>
-//             <p>Try adjusting your search or add a new student.</p>
-//           </div>
-//         )}
-//       </div>
-
-//       {/* Add/Edit Student Modal */}
-//       {showModal && (
-//         <div className="modal-overlay">
-//           <div className="modal">
-//             <div className="modal-header">
-//               <h3>{editingStudent ? 'Edit Student' : 'Add New Student'}</h3>
-//               <button className="modal-close" onClick={handleCloseModal}>×</button>
-//             </div>
-//             <div className="modal-body">
-//               <div className="form-row">
-//                 <div className="form-group">
-//                   <label>Full Name *</label>
-//                   <input
-//                     type="text"
-//                     name="name"
-//                     value={newStudent.name}
-//                     onChange={handleInputChange}
-//                     placeholder="Enter student name"
-//                   />
-//                 </div>
-//                 <div className="form-group">
-//                   <label>Email Address *</label>
-//                   <input
-//                     type="email"
-//                     name="email"
-//                     value={newStudent.email}
-//                     onChange={handleInputChange}
-//                     placeholder="Enter email address"
-//                   />
-//                 </div>
-//               </div>
-              
-//               <div className="form-row">
-//                 <div className="form-group">
-//                   <label>Phone Number</label>
-//                   <input
-//                     type="tel"
-//                     name="phone"
-//                     value={newStudent.phone}
-//                     onChange={handleInputChange}
-//                     placeholder="Enter phone number"
-//                   />
-//                 </div>
-//                 <div className="form-group">
-//                   <label>Room Number *</label>
-//                   <input
-//                     type="text"
-//                     name="roomNumber"
-//                     value={newStudent.roomNumber}
-//                     onChange={handleInputChange}
-//                     placeholder="Enter room number"
-//                   />
-//                 </div>
-//               </div>
-
-//               <div className="form-row">
-//                 <div className="form-group">
-//                   <label>Course</label>
-//                   <input
-//                     type="text"
-//                     name="course"
-//                     value={newStudent.course}
-//                     onChange={handleInputChange}
-//                     placeholder="Enter course name"
-//                   />
-//                 </div>
-//                 <div className="form-group">
-//                   <label>Year</label>
-//                   <select
-//                     name="year"
-//                     value={newStudent.year}
-//                     onChange={handleInputChange}
-//                   >
-//                     <option value="1st Year">1st Year</option>
-//                     <option value="2nd Year">2nd Year</option>
-//                     <option value="3rd Year">3rd Year</option>
-//                     <option value="4th Year">4th Year</option>
-//                   </select>
-//                 </div>
-//               </div>
-
-//               <div className="form-group">
-//                 <label>Status</label>
-//                 <select
-//                   name="status"
-//                   value={newStudent.status}
-//                   onChange={handleInputChange}
-//                 >
-//                   <option value="Active">Active</option>
-//                   <option value="Inactive">Inactive</option>
-//                   <option value="Graduated">Graduated</option>
-//                 </select>
-//               </div>
-//             </div>
-//             <div className="modal-footer">
-//               <button className="btn-secondary" onClick={handleCloseModal}>
-//                 Cancel
-//               </button>
-//               <button 
-//                 className="btn-primary"
-//                 onClick={editingStudent ? handleUpdateStudent : handleAddStudent}
-//               >
-//                 {editingStudent ? 'Update Student' : 'Add Student'}
-//               </button>
-//             </div>
-//           </div>
-//         </div>
-//       )}
-//     </div>
-//   );
-// };
-
-// export default StudentManagement;
+export default StudentManagement;

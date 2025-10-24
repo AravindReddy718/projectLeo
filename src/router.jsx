@@ -15,7 +15,10 @@ import StudentRoomAllotment from './pages/student/RoomAllotment';
 import ClerkDashboard from './pages/clerk/Dashboard';
 
 // Warden Pages
-import WardenDashboard from './pages/warden/Dashboard';
+import WardenDashboard from './pages/warden/dashboard';
+import ComplaintManagement from './pages/warden/ComplaintManagement';
+import StudentManagement from './pages/warden/StudentManagement';
+import RoomAllocation from './pages/warden/RoomAllocation';
 
 export default function AppRouter() {
   const { user } = useAuth();
@@ -24,6 +27,7 @@ export default function AppRouter() {
     <Routes>
       {/* Landing Page - Public route */}
       <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<Login />} />
       
       {/* Login Page - Redirect to dashboard if already logged in */}
       <Route path="/login" element={
@@ -68,10 +72,28 @@ export default function AppRouter() {
         </ProtectedRoute>
       } />
       
-      {/* Warden Routes */}
+      {/* Warden Routes - Separate pages like student routes */}
       <Route path="/warden/dashboard" element={
         <ProtectedRoute allowedRoles={['warden']}>
           <WardenDashboard />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/warden/complaints" element={
+        <ProtectedRoute allowedRoles={['warden']}>
+          <ComplaintManagement />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/warden/students" element={
+        <ProtectedRoute allowedRoles={['warden']}>
+          <StudentManagement />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/warden/room-allocation" element={
+        <ProtectedRoute allowedRoles={['warden']}>
+          <RoomAllocation />
         </ProtectedRoute>
       } />
       
