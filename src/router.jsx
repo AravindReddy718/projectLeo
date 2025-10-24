@@ -1,43 +1,81 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuth } from './hooks/useAuth'
-import LandingPage from './pages/LandingPage'
-import Login from './pages/auth/Login'
-import StudentDashboard from './pages/student/Dashboard'
-import ClerkDashboard from './pages/clerk/Dashboard'
-import WardenDashboard from './pages/warden/dashboard'
-import ProtectedRoute from './components/auth/ProtectedRoute'
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './hooks/useAuth';
+import Login from './pages/auth/Login';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import LandingPage from './pages/LandingPage';
+
+// Student Pages
+import StudentDashboard from './pages/student/Dashboard';
+import StudentProfile from './pages/student/Profile';
+import StudentComplaints from './pages/student/Complaints';
+import StudentPayments from './pages/student/Payments';
+import StudentRoomAllotment from './pages/student/RoomAllotment';
+
+// Clerk Pages
+import ClerkDashboard from './pages/clerk/Dashboard';
+
+// Warden Pages
+import WardenDashboard from './pages/warden/Dashboard';
 
 export default function AppRouter() {
-  const { user } = useAuth()
+  const { user } = useAuth();
 
   return (
     <Routes>
       {/* Landing Page - Public route */}
       <Route path="/" element={<LandingPage />} />
       
-      {/* Login Page - Always show login page when navigating to /login */}
-      <Route path="/login" element={<Login />} />
+      {/* Login Page - Redirect to dashboard if already logged in */}
+      <Route path="/login" element={
+        user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <Login />
+      } />
       
-      {/* Role-based Dashboard Routes */}
+      {/* Student Routes */}
       <Route path="/student/dashboard" element={
         <ProtectedRoute allowedRoles={['student']}>
           <StudentDashboard />
         </ProtectedRoute>
       } />
       
+      <Route path="/student/profile" element={
+        <ProtectedRoute allowedRoles={['student']}>
+          <StudentProfile />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/student/complaints" element={
+        <ProtectedRoute allowedRoles={['student']}>
+          <StudentComplaints />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/student/payments" element={
+        <ProtectedRoute allowedRoles={['student']}>
+          <StudentPayments />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/student/room-allotment" element={
+        <ProtectedRoute allowedRoles={['student']}>
+          <StudentRoomAllotment />
+        </ProtectedRoute>
+      } />
+      
+      {/* Clerk Routes */}
       <Route path="/clerk/dashboard" element={
         <ProtectedRoute allowedRoles={['clerk']}>
           <ClerkDashboard />
         </ProtectedRoute>
       } />
       
+      {/* Warden Routes */}
       <Route path="/warden/dashboard" element={
         <ProtectedRoute allowedRoles={['warden']}>
           <WardenDashboard />
         </ProtectedRoute>
       } />
       
-      {/* Add other roles as needed */}
+      {/* Mess Manager Route */}
       <Route path="/mess-manager/dashboard" element={
         <ProtectedRoute allowedRoles={['mess-manager']}>
           <div className="p-6">
@@ -54,5 +92,5 @@ export default function AppRouter() {
       {/* Catch all route - redirect to landing page */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-  )
+  );
 }
