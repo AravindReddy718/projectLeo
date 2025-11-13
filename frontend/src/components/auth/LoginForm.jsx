@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import authService from '../../services/authService'
+import { useAuth } from '../../hooks/useAuth'
 import './LoginForm.css'
 
 function LoginForm() {
@@ -9,6 +9,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const { login } = useAuth()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -17,7 +18,7 @@ function LoginForm() {
     setError('')
     
     try {
-      const result = await authService.login({ email, password })
+      const result = await login({ email, password })
       
       if (result.success) {
         console.log('Login successful, navigating to:', `/${result.user.role}/dashboard`)

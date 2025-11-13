@@ -1,26 +1,36 @@
 import React, { createContext, useState, useContext } from 'react'
+import authService from '../services/authService'
 
 const AuthContext = createContext()
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
 
-  const login = (userData) => {
-    setUser(userData)
-    // Store in localStorage for persistence
-    localStorage.setItem('hmc-user', JSON.stringify(userData))
+  const login = async (credentials) => {
+    try {
+      const result = await authService.login(credentials)
+      if (result.success) {
+        setUser(result.user)
+        // Store in localStorage for persistence
+        localStorage.setItem('hmc-user', JSON.stringify(result.user))
+        return { success: true, user: result.user }
+      }
+      return { success: false }
+    } catch (error) {
+      throw error
+    }
   }
 
   const logout = () => {
+    authService.logout()
     setUser(null)
-    localStorage.removeItem('hmc-user')
   }
 
   // Check if user exists in localStorage on app start
   React.useEffect(() => {
-    const storedUser = localStorage.getItem('hmc-user')
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
+    const storedUserData = authService.getCurrentUser()
+    if (storedUserData && storedUserData.user) {
+      setUser(storedUserData.user)
     }
   }, [])
 
