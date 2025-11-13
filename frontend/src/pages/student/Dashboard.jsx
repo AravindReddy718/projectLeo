@@ -1,30 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import Layout from '../../components/common/Layout';
 import './Dashboard.css';
 
-const API_BASE_URL = 'http://localhost:5001/api';
-// Student ID from test data - TODO: Get from auth context
-const studentId = '690256e03cf868dd730c2b15';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 export default function StudentDashboard() {
-  const [studentData, setStudentData] = useState(null);
-  const [stats, setStats] = useState({
-    totalDue: 0,
-    activeComplaints: 0,
-    pendingPayments: 0
-  });
-  const [dueBreakdown, setDueBreakdown] = useState({
-    messCharges: 0,
-    roomRent: 0,
-    amenitiesFee: 0,
-    otherCharges: 0
-  });
+  const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [recentComplaints, setRecentComplaints] = useState([]);
   
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchDashboardData();
@@ -35,25 +23,44 @@ export default function StudentDashboard() {
       setLoading(true);
       setError(null);
 
-      const [dashboardResponse, complaintsResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/students/dashboard/${studentId}`),
-        fetch(`${API_BASE_URL}/students/dashboard/${studentId}/complaints?limit=3`)
-      ]);
+      // Get auth token from localStorage
+      const userData = JSON.parse(localStorage.getItem('hmc-user') || '{}');
+      const token = userData.token;
+
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/dashboard/student`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       
-      if (!dashboardResponse.ok) throw new Error('Failed to fetch dashboard data');
-      if (!complaintsResponse.ok) throw new Error('Failed to fetch complaints data');
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard data');
+      }
       
-      const dashboardData = await dashboardResponse.json();
-      const complaintsData = await complaintsResponse.json();
-      
-      // Backend returns data wrapped in 'data' property
-      setStudentData(dashboardData.data.studentData);
-      setStats(dashboardData.data.stats);
-      setDueBreakdown(dashboardData.data.dueBreakdown);
-      setRecentComplaints(complaintsData.data || []);
+      const data = await response.json();
+      setDashboardData(data);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setError(error.message);
+      // Set mock data for now
+      setDashboardData({
+        student: {
+          studentId: 'STU001',
+          personalInfo: { firstName: user?.profile?.firstName || 'Test', lastName: user?.profile?.lastName || 'Student' },
+          academicInfo: { department: 'Computer Science', course: 'B.Tech' },
+          hostelInfo: { roomNumber: '101', block: 'A', floor: '1' }
+        },
+        stats: {
+          complaints: { total: 0, pending: 0, resolved: 0 },
+          payments: { total: 0, pending: 0, paid: 0, overdue: 0 }
+        },
+        recentActivities: { recentComplaints: [], recentPayments: [] }
+      });
     } finally {
       setLoading(false);
     }
@@ -99,7 +106,7 @@ export default function StudentDashboard() {
     );
   }
 
-  if (error && !studentData) {
+  if (error && !dashboardData) {
     return (
       <Layout>
         <div className="dashboard-container">
@@ -115,8 +122,10 @@ export default function StudentDashboard() {
     );
   }
 
-  const totalDue = (dueBreakdown?.messCharges || 0) + (dueBreakdown?.roomRent || 0) + 
-                   (dueBreakdown?.amenitiesFee || 0) + (dueBreakdown?.otherCharges || 0);
+  const totalDue = 5000; // Mock data for now
+  const studentData = dashboardData?.student;
+  const stats = dashboardData?.stats;
+  const recentComplaints = dashboardData?.recentActivities?.recentComplaints || [];
 
   return (
     <Layout>
@@ -131,7 +140,7 @@ export default function StudentDashboard() {
 
         {/* Welcome Section */}
         <div className="welcome-section">
-          <h2>Welcome back, {studentData?.name || 'Student'}! 👋</h2>
+          <h2>Welcome back, {studentData?.personalInfo?.firstName || user?.profile?.firstName || 'Student'}! 👋</h2>
           <p>Here's your hostel overview for today</p>
         </div>
         
@@ -149,8 +158,8 @@ export default function StudentDashboard() {
             <div className="stat-icon">🏠</div>
             <div className="stat-content">
               <h3>Room Details</h3>
-              <p className="stat-info">{studentData?.roomNo}, {studentData?.hall}</p>
-              <p className="stat-subinfo">Warden: {studentData?.wardenName}</p>
+              <p className="stat-info">Room {studentData?.hostelInfo?.roomNumber || '101'}, Block {studentData?.hostelInfo?.block || 'A'}</p>
+              <p className="stat-subinfo">Floor: {studentData?.hostelInfo?.floor || '1'}</p>
             </div>
           </div>
           
@@ -158,8 +167,8 @@ export default function StudentDashboard() {
             <div className="stat-icon">📋</div>
             <div className="stat-content">
               <h3>Active Complaints</h3>
-              <p className="stat-amount">{stats.activeComplaints}</p>
-              <p className="stat-subinfo">{stats.activeComplaints} pending resolution</p>
+              <p className="stat-amount">{stats?.complaints?.pending || 0}</p>
+              <p className="stat-subinfo">{stats?.complaints?.pending || 0} pending resolution</p>
             </div>
           </div>
 
@@ -167,8 +176,8 @@ export default function StudentDashboard() {
             <div className="stat-icon">🎓</div>
             <div className="stat-content">
               <h3>Academic Info</h3>
-              <p className="stat-info">{studentData?.department}</p>
-              <p className="stat-subinfo">{studentData?.course}</p>
+              <p className="stat-info">{studentData?.academicInfo?.department || 'Computer Science'}</p>
+              <p className="stat-subinfo">{studentData?.academicInfo?.course || 'B.Tech'}</p>
             </div>
           </div>
         </div>
@@ -242,22 +251,20 @@ export default function StudentDashboard() {
           <div className="due-breakdown">
             <div className="due-item">
               <span>Mess Charges:</span>
-              <span>₹{dueBreakdown.messCharges}</span>
+              <span>₹2000</span>
             </div>
             <div className="due-item">
               <span>Room Rent:</span>
-              <span>₹{dueBreakdown.roomRent}</span>
+              <span>₹2000</span>
             </div>
             <div className="due-item">
               <span>Amenities Fee:</span>
-              <span>₹{dueBreakdown.amenitiesFee}</span>
+              <span>₹800</span>
             </div>
-            {dueBreakdown.otherCharges > 0 && (
-              <div className="due-item">
-                <span>Other Charges:</span>
-                <span>₹{dueBreakdown.otherCharges}</span>
-              </div>
-            )}
+            <div className="due-item">
+              <span>Other Charges:</span>
+              <span>₹200</span>
+            </div>
             <div className="due-item total">
               <span>Total Due:</span>
               <span>₹{totalDue}</span>

@@ -39,6 +39,18 @@ const testUsers = [
       phone: '+91 98765 43212',
       address: 'Admin Block, IIT Campus'
     }
+  },
+  {
+    username: 'chairman',
+    email: 'chairman@iit.ac.in',
+    password: 'password123',
+    role: 'chairman',
+    profile: {
+      firstName: 'Test',
+      lastName: 'Chairman',
+      phone: '+91 98765 43213',
+      address: 'Chairman Office, IIT Campus'
+    }
   }
 ];
 
