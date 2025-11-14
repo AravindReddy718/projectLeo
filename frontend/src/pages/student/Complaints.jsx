@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
+import complaintService from '../../services/complaintService';
 import './Complaints.css';
-
-const API_BASE_URL = 'http://localhost:5000/api';
-// Change this line to use your actual student ID
-const studentId = '690256e03cf868dd730c2b15';
 
 export default function Complaints() {
   const [complaints, setComplaints] = useState([]);
@@ -12,14 +9,11 @@ export default function Complaints() {
   const [loading, setLoading] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [newComplaint, setNewComplaint] = useState({
-    type: '',
+    category: '',
     title: '',
     description: '',
     priority: 'medium'
   });
-
-  // Get student ID from auth (mock for now)
-  const studentId = '65a1b2c3d4e5f67890123456';
 
   // Fetch complaints from API
   useEffect(() => {
@@ -29,13 +23,13 @@ export default function Complaints() {
   const fetchComplaints = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/complaints?studentId=${studentId}`);
-      if (!response.ok) throw new Error('Failed to fetch complaints');
-      const data = await response.json();
-      setComplaints(data);
+      const response = await complaintService.getComplaints();
+      // Backend returns { complaints, totalPages, currentPage, total }
+      const complaintsList = response.complaints || response;
+      setComplaints(Array.isArray(complaintsList) ? complaintsList : []);
     } catch (error) {
       console.error('Error fetching complaints:', error);
-      alert('Failed to load complaints');
+      alert(error.message || 'Failed to load complaints');
     } finally {
       setLoading(false);
     }
@@ -44,34 +38,35 @@ export default function Complaints() {
   const handleSubmitComplaint = async (e) => {
     e.preventDefault();
     
+    // Validate form
+    if (!newComplaint.category || !newComplaint.title || !newComplaint.description) {
+      alert('Please fill in all required fields');
+      return;
+    }
+    
     try {
       setFormLoading(true);
-      const response = await fetch(`${API_BASE_URL}/complaints`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...newComplaint,
-          studentId: studentId
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to submit complaint');
-      }
-
-      const savedComplaint = await response.json();
+      const response = await complaintService.createComplaint(newComplaint);
       
-      // Update local state with the saved complaint
-      setComplaints([savedComplaint, ...complaints]);
-      setNewComplaint({ type: '', title: '', description: '', priority: 'medium' });
-      setShowForm(false);
-      alert('Complaint submitted successfully!');
+      // Backend returns { success: true, message, complaint }
+      if (response.success && response.complaint) {
+        const savedComplaint = response.complaint;
+        
+        // Update local state with the saved complaint
+        setComplaints([savedComplaint, ...complaints]);
+        setNewComplaint({ category: '', title: '', description: '', priority: 'medium' });
+        setShowForm(false);
+        alert('Complaint submitted successfully!');
+      } else {
+        throw new Error(response.message || 'Failed to create complaint');
+      }
     } catch (error) {
       console.error('Error submitting complaint:', error);
-      alert(error.message || 'Failed to submit complaint');
+      const errorMessage = error.message || 
+                          error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to create complaint. Please try again.';
+      alert(errorMessage);
     } finally {
       setFormLoading(false);
     }
@@ -127,19 +122,22 @@ export default function Complaints() {
             <h3>Raise New Complaint</h3>
             <form onSubmit={handleSubmitComplaint} className="complaint-form">
               <div className="form-group">
-                <label>Complaint Type *</label>
+                <label>Complaint Category *</label>
                 <select 
-                  value={newComplaint.type} 
-                  onChange={(e) => setNewComplaint({...newComplaint, type: e.target.value})}
+                  value={newComplaint.category} 
+                  onChange={(e) => setNewComplaint({...newComplaint, category: e.target.value})}
                   required
                   disabled={formLoading}
                 >
-                  <option value="">Select Type</option>
+                  <option value="">Select Category</option>
                   <option value="electrical">Electrical</option>
                   <option value="plumbing">Plumbing</option>
-                  <option value="housekeeping">Housekeeping</option>
+                  <option value="cleanliness">Cleanliness</option>
                   <option value="furniture">Furniture</option>
+                  <option value="food">Food</option>
                   <option value="internet">Internet</option>
+                  <option value="security">Security</option>
+                  <option value="medical">Medical</option>
                   <option value="other">Other</option>
                 </select>
               </div>
@@ -227,13 +225,13 @@ export default function Complaints() {
                 </div>
                 
                 <div className="complaint-body">
-                  <p><strong>Type:</strong> <span className="complaint-type-badge">{complaint.type}</span></p>
+                  <p><strong>Category:</strong> <span className="complaint-type-badge">{complaint.category || complaint.type}</span></p>
                   <p><strong>Description:</strong> {complaint.description}</p>
                   {complaint.assignedTo && (
-                    <p><strong>Assigned To:</strong> {complaint.assignedTo}</p>
+                    <p><strong>Assigned To:</strong> {complaint.assignedTo.username || complaint.assignedTo}</p>
                   )}
-                  {complaint.resolutionNotes && (
-                    <p><strong>Resolution Notes:</strong> {complaint.resolutionNotes}</p>
+                  {complaint.resolution?.resolutionNotes && (
+                    <p><strong>Resolution Notes:</strong> {complaint.resolution.resolutionNotes}</p>
                   )}
                 </div>
 

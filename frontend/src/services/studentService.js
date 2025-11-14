@@ -79,6 +79,47 @@ const studentService = {
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Failed to process payment');
     }
+  },
+
+  // Get all students (warden/admin only)
+  getAllStudents: async (filters = {}) => {
+    try {
+      const params = new URLSearchParams(filters).toString();
+      const queryString = params ? `?${params}` : '';
+      const response = await api.get(`/students${queryString}`);
+      return response.data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to fetch students';
+      throw new Error(errorMessage);
+    }
+  },
+
+  // Get student by ID
+  getStudentById: async (id) => {
+    try {
+      const response = await api.get(`/students/${id}`);
+      return response.data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to fetch student';
+      throw new Error(errorMessage);
+    }
+  },
+
+  // Get own profile
+  getOwnProfile: async () => {
+    try {
+      const response = await api.get('/students/profile/me');
+      return response.data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to fetch profile';
+      throw new Error(errorMessage);
+    }
   }
 };
 

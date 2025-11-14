@@ -1,29 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
+import api from '../../services/api';
 import './RoomAllocation.css';
 
 const RoomAllocation = () => {
   const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Mock data
-    const mockRooms = [
-      { id: '101', number: '101', capacity: 2, currentOccupants: 2, status: 'occupied', type: 'Standard' },
-      { id: '102', number: '102', capacity: 2, currentOccupants: 1, status: 'partially-occupied', type: 'Standard' },
-      { id: '103', number: '103', capacity: 2, currentOccupants: 0, status: 'available', type: 'Standard' },
-    ];
-    setRooms(mockRooms);
+    fetchRoomData();
   }, []);
+
+  const fetchRoomData = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/dashboard/room-occupancy');
+      const roomDetails = response.data.roomDetails || [];
+      
+      // Transform room details into room cards
+      const roomsList = roomDetails.map(room => {
+        const roomNumber = room._id?.roomNumber || 'N/A';
+        const block = room._id?.block || 'N/A';
+        const count = room.count || 0;
+        const capacity = 2; // Assuming standard capacity, can be made dynamic
+        
+        let status = 'available';
+        if (count >= capacity) status = 'occupied';
+        else if (count > 0) status = 'partially-occupied';
+        
+        return {
+          id: `${block}-${roomNumber}`,
+          number: roomNumber,
+          block: block,
+          capacity: capacity,
+          currentOccupants: count,
+          status: status,
+          type: 'Standard',
+          students: room.students || []
+        };
+      });
+      
+      setRooms(roomsList);
+    } catch (error) {
+      console.error('Error fetching room data:', error);
+      alert(error.response?.data?.message || 'Failed to load room data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredRooms = rooms.filter(room => {
     if (filter === 'all') return true;
     return room.status === filter;
   }).filter(room => 
-    room.number.toLowerCase().includes(searchTerm.toLowerCase())
+    room.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    room.block.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -90,29 +125,43 @@ const RoomAllocation = () => {
 
         {/* Rooms Grid */}
         <div className="rooms-grid">
-          {filteredRooms.map(room => (
-            <div key={room.id} className="room-card">
-              <div className="room-header">
-                <h3>Room {room.number}</h3>
-                <span className={`status-badge status-${room.status}`}>
-                  {room.status}
-                </span>
-              </div>
-              <div className="room-details">
-                <p><strong>Type:</strong> {room.type}</p>
-                <p><strong>Capacity:</strong> {room.currentOccupants}/{room.capacity}</p>
-                <p><strong>Status:</strong> {room.status}</p>
-              </div>
-              <div className="room-actions">
-                <button className="btn btn-primary btn-sm">
-                  Allocate Student
-                </button>
-                <button className="btn btn-secondary btn-sm">
-                  View Details
-                </button>
-              </div>
+          {loading ? (
+            <div className="loading-container">
+              <p>Loading rooms...</p>
             </div>
-          ))}
+          ) : filteredRooms.length === 0 ? (
+            <div className="no-rooms">
+              <p>No rooms found</p>
+            </div>
+          ) : (
+            filteredRooms.map(room => (
+              <div key={room.id} className="room-card">
+                <div className="room-header">
+                  <h3>Room {room.number} - {room.block}</h3>
+                  <span className={`status-badge status-${room.status}`}>
+                    {room.status.replace('-', ' ')}
+                  </span>
+                </div>
+                <div className="room-details">
+                  <p><strong>Block:</strong> {room.block}</p>
+                  <p><strong>Type:</strong> {room.type}</p>
+                  <p><strong>Occupancy:</strong> {room.currentOccupants}/{room.capacity}</p>
+                  <p><strong>Status:</strong> {room.status.replace('-', ' ')}</p>
+                  {room.students && room.students.length > 0 && (
+                    <p><strong>Students:</strong> {room.students.length}</p>
+                  )}
+                </div>
+                <div className="room-actions">
+                  <button className="btn btn-primary btn-sm">
+                    Allocate Student
+                  </button>
+                  <button className="btn btn-secondary btn-sm">
+                    View Details
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </Layout>

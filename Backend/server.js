@@ -1,66 +1,127 @@
+// Backend/server.js - Complete Working Server
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Connect to MongoDB - Temporarily disabled for testing
-// mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/hmc', {
-//   useNewUrlParser: true,
-//   useUnifiedTopology: true,
-// })
-// .then(() => console.log('MongoDB connected successfully'))
-// .catch((err) => console.error('MongoDB connection error:', err));
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/hmc_database';
 
-console.log('MongoDB connection temporarily disabled for testing');
+const connectDB = async () => {
+  try {
+    await mongoose.connect(MONGODB_URI);
+    console.log('✅ MongoDB Connected Successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ MongoDB Connection Error:', error.message);
+    return false;
+  }
+};
 
-// Routes - Using mock auth for testing
-app.use('/api/auth', require('./routes/auth-mock'));
-app.use('/api/students', require('./routes/students'));
-app.use('/api/complaints', require('./routes/complaints'));
-app.use('/api/payments', require('./routes/payments'));
-app.use('/api/dashboard', require('./routes/dashboard'));
+// Import Models
+const User = require('./models/User');
+const Student = require('./models/Student');
+const Complaint = require('./models/Complaint');
+const Payment = require('./models/Payment');
 
-// Health check route
-app.get('/', (req, res) => {
+// Import Middleware
+const { auth, authorize } = require('./middleware/auth');
+
+// Import Routes
+const authRoutes = require('./routes/auth');
+const studentRoutes = require('./routes/students');
+const complaintRoutes = require('./routes/complaints');
+const paymentRoutes = require('./routes/payments');
+const dashboardRoutes = require('./routes/dashboard');
+const roomRoutes = require('./routes/rooms');
+
+// Health Check Route
+app.get('/api/health', async (req, res) => {
+  const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
   res.json({ 
-    message: 'HMC Backend API is running',
-    status: 'healthy',
-    timestamp: new Date().toISOString()
+    message: '🚀 HMC Server is running!',
+    database: dbStatus,
+    timestamp: new Date().toISOString(),
+    port: PORT
   });
 });
 
-// API info route
-app.get('/api', (req, res) => {
-  res.json({
-    name: 'Hostel Management Committee API',
-    version: '1.0.0',
-    endpoints: {
-      auth: '/api/auth',
-      students: '/api/students',
-      complaints: '/api/complaints',
-      payments: '/api/payments',
-      dashboard: '/api/dashboard'
-    }
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/students', studentRoutes);
+app.use('/api/complaints', complaintRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/rooms', roomRoutes);
+
+// Error Handling Middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err.stack);
+  res.status(err.statusCode || 500).json({
+    message: err.message || 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err : {}
   });
 });
 
-// Handle 404 errors
-app.use(notFound);
-
-// Handle all other errors
-app.use(errorHandler);
-
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`API Documentation: http://localhost:${PORT}/api`);
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
 });
+
+// Start Server
+const startServer = async () => {
+  console.log('🔄 Starting HMC Backend Server...');
+  console.log('📍 Environment:', process.env.NODE_ENV || 'development');
+  
+  const dbConnected = await connectDB();
+  
+  if (dbConnected) {
+    app.listen(PORT, () => {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log(`🎯 Server running on port ${PORT}`);
+      console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
+      console.log(`📊 API Base URL: http://localhost:${PORT}/api`);
+      console.log(`💾 MongoDB: Connected ✅`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    });
+  } else {
+    console.log('❌ Server cannot start without database connection');
+    console.log('⚠️  Please check your MongoDB connection and try again');
+    process.exit(1);
+  }
+};
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('❌ Unhandled Promise Rejection:', err);
+  process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('👋 SIGTERM received. Shutting down gracefully...');
+  mongoose.connection.close(() => {
+    console.log('💾 MongoDB connection closed');
+    process.exit(0);
+  });
+});
+
+startServer();
+
+module.exports = app;

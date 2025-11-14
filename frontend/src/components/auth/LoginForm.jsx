@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import './LoginForm.css'
 
@@ -9,10 +9,11 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const location = useLocation()
   const { login } = useAuth()
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault() // Prevent form default submission - CRITICAL for React Router
     
     setLoading(true)
     setError('')
@@ -20,12 +21,22 @@ function LoginForm() {
     try {
       const result = await login({ email, password })
       
-      if (result.success) {
-        console.log('Login successful, navigating to:', `/${result.user.role}/dashboard`)
-        navigate(`/${result.user.role}/dashboard`)
+      if (result && result.success && result.user) {
+        console.log('Login successful, user:', result.user)
+        
+        // Get return path from location state (if redirected from protected route)
+        // location.state.from is set by ProtectedRoute when redirecting unauthenticated users
+        const returnPath = location.state?.from || `/${result.user.role}/dashboard`
+        
+        console.log('Navigating to:', returnPath)
+        // Use replace to prevent back navigation to login
+        navigate(returnPath, { replace: true })
+      } else {
+        setError('Login failed. Please check your credentials.')
       }
     } catch (err) {
-      setError(err.message)
+      console.error('Login error:', err)
+      setError(err.message || 'Login failed. Please try again.')
     } finally {
       setLoading(false)
     }

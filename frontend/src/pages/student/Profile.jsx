@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
+import studentService from '../../services/studentService';
 import './Profile.css';
-
-const API_BASE_URL = 'http://localhost:5000/api';
-// Change this line to use your actual student ID
-const studentId = '690256e03cf868dd730c2b15';
 
 export default function Profile() {
   const [student, setStudent] = useState(null);
@@ -15,9 +12,6 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
-  // Get student ID from auth (mock for now)
-  const studentId = '65a1b2c3d4e5f67890123456';
-
   useEffect(() => {
     fetchStudentProfile();
   }, []);
@@ -25,9 +19,7 @@ export default function Profile() {
   const fetchStudentProfile = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/students/${studentId}`);
-      if (!response.ok) throw new Error('Failed to fetch student profile');
-      const studentData = await response.json();
+      const studentData = await studentService.getOwnProfile();
       setStudent(studentData);
       
       // Set profile photo if exists
@@ -36,7 +28,7 @@ export default function Profile() {
       }
     } catch (error) {
       console.error('Error fetching student profile:', error);
-      alert('Failed to load profile');
+      alert(error.message || 'Failed to load profile');
     } finally {
       setLoading(false);
     }
@@ -47,28 +39,16 @@ export default function Profile() {
     
     try {
       setSaving(true);
-      const response = await fetch(`${API_BASE_URL}/students/${studentId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: student.name,
-          contactNumber: student.contactNumber,
-          permanentAddress: student.permanentAddress,
-          bloodGroup: student.bloodGroup,
-          emergencyContact: student.emergencyContact,
-          parentName: student.parentName
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update profile');
-      }
-
-      const updatedStudent = await response.json();
-      setStudent(updatedStudent);
+      const updateData = {
+        contactInfo: {
+          phone: student.contactInfo?.phone,
+          parentPhone: student.contactInfo?.parentPhone,
+          emergencyContact: student.contactInfo?.emergencyContact
+        }
+      };
+      
+      await studentService.updateProfile(student._id, updateData);
+      await fetchStudentProfile(); // Refresh profile
       setIsEditing(false);
       alert('Profile updated successfully!');
     } catch (error) {
@@ -178,10 +158,10 @@ export default function Profile() {
               </div>
             </div>
             <div className="photo-info">
-              <h2>{student.name}</h2>
-              <p className="student-id">{student.rollNumber}</p>
-              <p className="student-course">{student.department} • {student.course}</p>
-              <div className="status-badge">{student.isActive ? 'Active' : 'Inactive'}</div>
+              <h2>{student.personalInfo?.firstName || ''} {student.personalInfo?.lastName || ''}</h2>
+              <p className="student-id">{student.studentId}</p>
+              <p className="student-course">{student.academicInfo?.department || 'N/A'} • {student.academicInfo?.year || 'N/A'} Year</p>
+              <div className="status-badge">{student.status || 'Active'}</div>
             </div>
           </div>
 
@@ -196,32 +176,24 @@ export default function Profile() {
               <div className="info-grid">
                 <div className="info-item">
                   <label>Full Name</label>
-                  {isEditing ? (
-                    <input 
-                      type="text" 
-                      value={student.name} 
-                      onChange={(e) => setStudent({...student, name: e.target.value})} 
-                      className="edit-input"
-                      disabled={saving}
-                    />
-                  ) : (
-                    <span className="info-value">{student.name}</span>
-                  )}
+                  <span className="info-value">
+                    {student.personalInfo?.firstName || ''} {student.personalInfo?.lastName || ''}
+                  </span>
+                </div>
+
+                <div className="info-item">
+                  <label>Student ID</label>
+                  <span className="info-value code">{student.studentId}</span>
                 </div>
 
                 <div className="info-item">
                   <label>Roll Number</label>
-                  <span className="info-value code">{student.rollNumber}</span>
-                </div>
-
-                <div className="info-item">
-                  <label>Admission Number</label>
-                  <span className="info-value code">{student.admissionNo}</span>
+                  <span className="info-value code">{student.academicInfo?.rollNumber || 'N/A'}</span>
                 </div>
 
                 <div className="info-item">
                   <label>Email Address</label>
-                  <span className="info-value email">{student.email}</span>
+                  <span className="info-value email">{student.contactInfo?.email || student.user?.email || 'N/A'}</span>
                 </div>
 
                 <div className="info-item">
@@ -229,29 +201,26 @@ export default function Profile() {
                   {isEditing ? (
                     <input 
                       type="tel" 
-                      value={student.contactNumber} 
-                      onChange={(e) => setStudent({...student, contactNumber: e.target.value})}
+                      value={student.contactInfo?.phone || ''} 
+                      onChange={(e) => setStudent({
+                        ...student, 
+                        contactInfo: { ...student.contactInfo, phone: e.target.value }
+                      })}
                       className="edit-input"
                       disabled={saving}
                     />
                   ) : (
-                    <span className="info-value phone">{student.contactNumber}</span>
+                    <span className="info-value phone">{student.contactInfo?.phone || 'N/A'}</span>
                   )}
                 </div>
 
-                <div className="info-item full-width">
-                  <label>Permanent Address</label>
-                  {isEditing ? (
-                    <textarea 
-                      value={student.permanentAddress} 
-                      onChange={(e) => setStudent({...student, permanentAddress: e.target.value})}
-                      className="edit-textarea"
-                      rows="3"
-                      disabled={saving}
-                    />
-                  ) : (
-                    <span className="info-value address">{student.permanentAddress}</span>
-                  )}
+                <div className="info-item">
+                  <label>Date of Birth</label>
+                  <span className="info-value">
+                    {student.personalInfo?.dateOfBirth 
+                      ? new Date(student.personalInfo.dateOfBirth).toLocaleDateString() 
+                      : 'N/A'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -265,15 +234,19 @@ export default function Profile() {
               <div className="info-grid">
                 <div className="info-item">
                   <label>Department</label>
-                  <span className="info-value">{student.department}</span>
+                  <span className="info-value">{student.academicInfo?.department || 'N/A'}</span>
                 </div>
                 <div className="info-item">
-                  <label>Course</label>
-                  <span className="info-value">{student.course}</span>
+                  <label>Year</label>
+                  <span className="info-value badge">{student.academicInfo?.year || 'N/A'}</span>
                 </div>
                 <div className="info-item">
                   <label>Semester</label>
-                  <span className="info-value badge">{student.semester}</span>
+                  <span className="info-value badge">{student.academicInfo?.semester || 'N/A'}</span>
+                </div>
+                <div className="info-item">
+                  <label>CGPA</label>
+                  <span className="info-value badge">{student.academicInfo?.cgpa || 'N/A'}</span>
                 </div>
               </div>
             </div>
@@ -286,16 +259,20 @@ export default function Profile() {
               </div>
               <div className="info-grid">
                 <div className="info-item">
-                  <label>Hall</label>
-                  <span className="info-value hall">{student.hall}</span>
+                  <label>Block</label>
+                  <span className="info-value hall">{student.hostelInfo?.block || 'N/A'}</span>
                 </div>
                 <div className="info-item">
                   <label>Room Number</label>
-                  <span className="info-value room">{student.roomNo}</span>
+                  <span className="info-value room">{student.hostelInfo?.roomNumber || 'N/A'}</span>
                 </div>
                 <div className="info-item">
-                  <label>Room Type</label>
-                  <span className="info-value">{student.roomType}</span>
+                  <label>Floor</label>
+                  <span className="info-value">{student.hostelInfo?.floor || 'N/A'}</span>
+                </div>
+                <div className="info-item">
+                  <label>Bed Number</label>
+                  <span className="info-value">{student.hostelInfo?.bedNumber || 'N/A'}</span>
                 </div>
               </div>
             </div>
@@ -308,63 +285,58 @@ export default function Profile() {
               </div>
               <div className="info-grid">
                 <div className="info-item">
-                  <label>Warden Name</label>
-                  <span className="info-value">{student.wardenName}</span>
-                </div>
-                <div className="info-item">
-                  <label>Warden Contact</label>
-                  <span className="info-value email">{student.wardenContact}</span>
-                </div>
-                <div className="info-item">
-                  <label>Parent/Guardian</label>
-                  {isEditing ? (
-                    <input 
-                      type="text" 
-                      value={student.parentName || ''} 
-                      onChange={(e) => setStudent({...student, parentName: e.target.value})}
-                      className="edit-input"
-                      disabled={saving}
-                    />
-                  ) : (
-                    <span className="info-value">{student.parentName || 'Not provided'}</span>
-                  )}
-                </div>
-                <div className="info-item">
-                  <label>Emergency Contact</label>
+                  <label>Parent Phone</label>
                   {isEditing ? (
                     <input 
                       type="tel" 
-                      value={student.emergencyContact || ''} 
-                      onChange={(e) => setStudent({...student, emergencyContact: e.target.value})}
+                      value={student.contactInfo?.parentPhone || ''} 
+                      onChange={(e) => setStudent({
+                        ...student, 
+                        contactInfo: { ...student.contactInfo, parentPhone: e.target.value }
+                      })}
                       className="edit-input"
                       disabled={saving}
                     />
                   ) : (
-                    <span className="info-value phone">{student.emergencyContact || 'Not provided'}</span>
+                    <span className="info-value phone">{student.contactInfo?.parentPhone || 'Not provided'}</span>
+                  )}
+                </div>
+                <div className="info-item">
+                  <label>Emergency Contact Name</label>
+                  <span className="info-value">
+                    {student.contactInfo?.emergencyContact?.name || 'Not provided'}
+                  </span>
+                </div>
+                <div className="info-item">
+                  <label>Emergency Contact Phone</label>
+                  {isEditing ? (
+                    <input 
+                      type="tel" 
+                      value={student.contactInfo?.emergencyContact?.phone || ''} 
+                      onChange={(e) => setStudent({
+                        ...student, 
+                        contactInfo: { 
+                          ...student.contactInfo, 
+                          emergencyContact: { 
+                            ...student.contactInfo?.emergencyContact, 
+                            phone: e.target.value 
+                          }
+                        }
+                      })}
+                      className="edit-input"
+                      disabled={saving}
+                    />
+                  ) : (
+                    <span className="info-value phone">
+                      {student.contactInfo?.emergencyContact?.phone || 'Not provided'}
+                    </span>
                   )}
                 </div>
                 <div className="info-item">
                   <label>Blood Group</label>
-                  {isEditing ? (
-                    <select 
-                      value={student.bloodGroup || ''} 
-                      onChange={(e) => setStudent({...student, bloodGroup: e.target.value})}
-                      className="edit-input"
-                      disabled={saving}
-                    >
-                      <option value="">Select Blood Group</option>
-                      <option value="A+">A+</option>
-                      <option value="A-">A-</option>
-                      <option value="B+">B+</option>
-                      <option value="B-">B-</option>
-                      <option value="O+">O+</option>
-                      <option value="O-">O-</option>
-                      <option value="AB+">AB+</option>
-                      <option value="AB-">AB-</option>
-                    </select>
-                  ) : (
-                    <span className="info-value blood-group">{student.bloodGroup || 'Not provided'}</span>
-                  )}
+                  <span className="info-value blood-group">
+                    {student.personalInfo?.bloodGroup || 'Not provided'}
+                  </span>
                 </div>
               </div>
             </div>

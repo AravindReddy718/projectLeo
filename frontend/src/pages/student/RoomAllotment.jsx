@@ -1,18 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
+import studentService from '../../services/studentService';
 import './RoomAllotment.css';
-
-const API_BASE_URL = 'http://localhost:5000/api';
-// Change this line to use your actual student ID
-const studentId = '690256e03cf868dd730c2b15';
 
 export default function RoomAllotment() {
   const [allotment, setAllotment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Get student ID from auth (mock for now)
-  const studentId = '65a1b2c3d4e5f67890123456';
 
   useEffect(() => {
     fetchRoomAllotment();   
@@ -22,20 +16,29 @@ export default function RoomAllotment() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`${API_BASE_URL}/students/${studentId}/room-allotment`);
       
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('Room allotment not found');
-        }
-        throw new Error('Failed to fetch room allotment');
+      // Get student profile which contains room allotment info
+      const studentData = await studentService.getOwnProfile();
+      
+      // Transform student data into allotment format
+      if (studentData && studentData.hostelInfo) {
+        setAllotment({
+          studentName: `${studentData.personalInfo?.firstName || ''} ${studentData.personalInfo?.lastName || ''}`.trim(),
+          rollNumber: studentData.academicInfo?.rollNumber || studentData.studentId,
+          hall: studentData.hostelInfo.block || 'N/A',
+          roomNo: studentData.hostelInfo.roomNumber || 'N/A',
+          roomType: 'Standard',
+          roomRent: 750, // This should come from fees or a separate API
+          dateOfAllotment: studentData.hostelInfo.checkInDate || new Date(),
+          validUntil: studentData.hostelInfo.checkOutDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+          wardenName: 'Hall Warden' // This should come from API
+        });
+      } else {
+        throw new Error('Room allotment information not available');
       }
-      
-      const allotmentData = await response.json();
-      setAllotment(allotmentData);
     } catch (error) {
       console.error('Error fetching room allotment:', error);
-      setError(error.message);
+      setError(error.message || 'Failed to fetch room allotment');
     } finally {
       setLoading(false);
     }

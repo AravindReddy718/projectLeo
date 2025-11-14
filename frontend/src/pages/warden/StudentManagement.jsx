@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
+import studentService from '../../services/studentService';
 import './StudentManagement.css';
 
 const StudentManagement = () => {
   const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,40 +18,35 @@ const StudentManagement = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Mock data with all profile fields
-    const mockStudents = [
-      {
-        id: '2024CS10001',
-        name: 'Amit Kumar',
-        rollNumber: '2024CS10001',
-        admissionNo: 'ADM202400125',
-        email: 'amit.kumar@iit.ac.in',
-        contactNumber: '9876543210',
-        permanentAddress: '123 Main Street, Delhi, India - 110001',
-        hall: 'Hall 5',
-        roomNo: 'G-102',
-        roomRent: 750,
-        amenitiesFee: 300,
-        wardenName: 'Dr. Priya Sharma',
-        wardenContact: 'warden.h5@iit.ac.in',
-        department: 'Computer Science',
-        course: 'B.Tech',
-        semester: '3rd',
-        bloodGroup: 'O+',
-        emergencyContact: '9876543211',
-        parentName: 'Rajesh Kumar',
-        status: 'Active'
-      }
-    ];
-    setStudents(mockStudents);
-  }, []);
+    fetchStudents();
+  }, [filters]);
+
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      const filterParams = {};
+      if (filters.status !== 'all') filterParams.status = filters.status.toLowerCase();
+      if (filters.department !== 'all') filterParams.department = filters.department;
+      
+      const response = await studentService.getAllStudents(filterParams);
+      const studentsList = response.students || response;
+      setStudents(Array.isArray(studentsList) ? studentsList : []);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      alert(error.message || 'Failed to load students');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredStudents = students.filter(student => {
+    const fullName = `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim();
     const matchesSearch = 
-      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.rollNumber.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesHall = filters.hall === 'all' || student.hall === filters.hall;
-    const matchesDept = filters.department === 'all' || student.department === filters.department;
+      fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.studentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.academicInfo?.rollNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesHall = filters.hall === 'all' || student.hostelInfo?.block === filters.hall;
+    const matchesDept = filters.department === 'all' || student.academicInfo?.department === filters.department;
     const matchesStatus = filters.status === 'all' || student.status === filters.status;
     return matchesSearch && matchesHall && matchesDept && matchesStatus;
   });
@@ -132,37 +129,56 @@ const StudentManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredStudents.map(student => (
-                <tr key={student.id}>
-                  <td>{student.rollNumber}</td>
-                  <td>
-                    <div className="student-info">
-                      <div className="student-avatar">
-                        {student.name.charAt(0)}
-                      </div>
-                      {student.name}
-                    </div>
-                  </td>
-                  <td>{student.department}</td>
-                  <td>
-                    <span className="room-badge">{student.hall} - {student.roomNo}</span>
-                  </td>
-                  <td>{student.contactNumber}</td>
-                  <td>
-                    <span className={`status-badge status-${student.status.toLowerCase()}`}>
-                      {student.status}
-                    </span>
-                  </td>
-                  <td>
-                    <button 
-                      className="btn btn-primary btn-sm"
-                      onClick={() => handleViewDetails(student)}
-                    >
-                      View Details
-                    </button>
+              {loading ? (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
+                    Loading students...
                   </td>
                 </tr>
-              ))}
+              ) : filteredStudents.length === 0 ? (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
+                    No students found
+                  </td>
+                </tr>
+              ) : (
+                filteredStudents.map(student => {
+                  const fullName = `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim();
+                  return (
+                    <tr key={student._id}>
+                      <td>{student.academicInfo?.rollNumber || student.studentId}</td>
+                      <td>
+                        <div className="student-info">
+                          <div className="student-avatar">
+                            {fullName.charAt(0) || 'S'}
+                          </div>
+                          {fullName || 'Unknown Student'}
+                        </div>
+                      </td>
+                      <td>{student.academicInfo?.department || 'N/A'}</td>
+                      <td>
+                        <span className="room-badge">
+                          {student.hostelInfo?.block || 'N/A'} - {student.hostelInfo?.roomNumber || 'N/A'}
+                        </span>
+                      </td>
+                      <td>{student.contactInfo?.phone || 'N/A'}</td>
+                      <td>
+                        <span className={`status-badge status-${student.status?.toLowerCase() || 'active'}`}>
+                          {student.status || 'Active'}
+                        </span>
+                      </td>
+                      <td>
+                        <button 
+                          className="btn btn-primary btn-sm"
+                          onClick={() => handleViewDetails(student)}
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -172,7 +188,7 @@ const StudentManagement = () => {
           <div className="modal-overlay">
             <div className="modal student-details-modal">
               <div className="modal-header">
-                <h3>Student Profile - {selectedStudent.name}</h3>
+                <h3>Student Profile - {selectedStudent.personalInfo?.firstName || ''} {selectedStudent.personalInfo?.lastName || ''}</h3>
                 <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
               </div>
               <div className="modal-body">
@@ -181,19 +197,27 @@ const StudentManagement = () => {
                   <div className="info-grid">
                     <div className="info-item">
                       <label>Full Name</label>
-                      <span>{selectedStudent.name}</span>
+                      <span>{selectedStudent.personalInfo?.firstName || ''} {selectedStudent.personalInfo?.lastName || ''}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>Student ID</label>
+                      <span>{selectedStudent.studentId}</span>
                     </div>
                     <div className="info-item">
                       <label>Roll Number</label>
-                      <span>{selectedStudent.rollNumber}</span>
+                      <span>{selectedStudent.academicInfo?.rollNumber || 'N/A'}</span>
                     </div>
                     <div className="info-item">
                       <label>Email</label>
-                      <span>{selectedStudent.email}</span>
+                      <span>{selectedStudent.contactInfo?.email || selectedStudent.user?.email || 'N/A'}</span>
                     </div>
                     <div className="info-item">
                       <label>Contact</label>
-                      <span>{selectedStudent.contactNumber}</span>
+                      <span>{selectedStudent.contactInfo?.phone || 'N/A'}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>Blood Group</label>
+                      <span>{selectedStudent.personalInfo?.bloodGroup || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -203,15 +227,19 @@ const StudentManagement = () => {
                   <div className="info-grid">
                     <div className="info-item">
                       <label>Department</label>
-                      <span>{selectedStudent.department}</span>
+                      <span>{selectedStudent.academicInfo?.department || 'N/A'}</span>
                     </div>
                     <div className="info-item">
-                      <label>Course</label>
-                      <span>{selectedStudent.course}</span>
+                      <label>Year</label>
+                      <span>{selectedStudent.academicInfo?.year || 'N/A'}</span>
                     </div>
                     <div className="info-item">
                       <label>Semester</label>
-                      <span>{selectedStudent.semester}</span>
+                      <span>{selectedStudent.academicInfo?.semester || 'N/A'}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>CGPA</label>
+                      <span>{selectedStudent.academicInfo?.cgpa || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -220,12 +248,20 @@ const StudentManagement = () => {
                   <h4>Hall Information</h4>
                   <div className="info-grid">
                     <div className="info-item">
-                      <label>Hall</label>
-                      <span>{selectedStudent.hall}</span>
+                      <label>Block</label>
+                      <span>{selectedStudent.hostelInfo?.block || 'N/A'}</span>
                     </div>
                     <div className="info-item">
                       <label>Room Number</label>
-                      <span>{selectedStudent.roomNo}</span>
+                      <span>{selectedStudent.hostelInfo?.roomNumber || 'N/A'}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>Floor</label>
+                      <span>{selectedStudent.hostelInfo?.floor || 'N/A'}</span>
+                    </div>
+                    <div className="info-item">
+                      <label>Bed Number</label>
+                      <span>{selectedStudent.hostelInfo?.bedNumber || 'N/A'}</span>
                     </div>
                   </div>
                 </div>

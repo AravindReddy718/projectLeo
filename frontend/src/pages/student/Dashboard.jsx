@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import Layout from '../../components/common/Layout';
+import studentService from '../../services/studentService';
+import api from '../../services/api';
 import './Dashboard.css';
-
-const API_BASE_URL = 'http://localhost:8000/api';
 
 export default function StudentDashboard() {
   const [dashboardData, setDashboardData] = useState(null);
@@ -23,44 +23,12 @@ export default function StudentDashboard() {
       setLoading(true);
       setError(null);
 
-      // Get auth token from localStorage
-      const userData = JSON.parse(localStorage.getItem('hmc-user') || '{}');
-      const token = userData.token;
-
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/dashboard/student`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch dashboard data');
-      }
-      
-      const data = await response.json();
-      setDashboardData(data);
+      const data = await api.get('/dashboard/student');
+      setDashboardData(data.data);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      setError(error.message);
-      // Set mock data for now
-      setDashboardData({
-        student: {
-          studentId: 'STU001',
-          personalInfo: { firstName: user?.profile?.firstName || 'Test', lastName: user?.profile?.lastName || 'Student' },
-          academicInfo: { department: 'Computer Science', course: 'B.Tech' },
-          hostelInfo: { roomNumber: '101', block: 'A', floor: '1' }
-        },
-        stats: {
-          complaints: { total: 0, pending: 0, resolved: 0 },
-          payments: { total: 0, pending: 0, paid: 0, overdue: 0 }
-        },
-        recentActivities: { recentComplaints: [], recentPayments: [] }
-      });
+      setError(error.response?.data?.message || error.message || 'Failed to load dashboard');
+      // Don't set mock data - show error instead
     } finally {
       setLoading(false);
     }
@@ -122,10 +90,15 @@ export default function StudentDashboard() {
     );
   }
 
-  const totalDue = 5000; // Mock data for now
   const studentData = dashboardData?.student;
   const stats = dashboardData?.stats;
   const recentComplaints = dashboardData?.recentActivities?.recentComplaints || [];
+  const recentPayments = dashboardData?.recentActivities?.recentPayments || [];
+  
+  // Calculate total due from payments
+  const totalDue = stats?.payments?.pending || 0;
+  const feeSummary = studentData?.feeSummary || { pendingFees: 0 };
+  const actualDue = feeSummary.pendingFees || totalDue;
 
   return (
     <Layout>
@@ -149,8 +122,14 @@ export default function StudentDashboard() {
             <div className="stat-icon">💰</div>
             <div className="stat-content">
               <h3>Total Due</h3>
-              <p className="stat-amount">₹{totalDue}</p>
-              <p className="stat-due">Due in 5 days</p>
+              <p className="stat-amount">₹{actualDue.toLocaleString()}</p>
+              <p className="stat-due">
+                {stats?.payments?.overdue > 0 
+                  ? `${stats.payments.overdue} overdue` 
+                  : stats?.payments?.pending > 0 
+                  ? `${stats.payments.pending} pending` 
+                  : 'All paid'}
+              </p>
             </div>
           </div>
           
@@ -229,7 +208,7 @@ export default function StudentDashboard() {
                       </div>
                     </div>
                     <div className="complaint-details">
-                      <span className="complaint-type">{complaint.type}</span>
+                      <span className="complaint-type">{complaint.category || complaint.type}</span>
                       <span className="complaint-date">{formatDate(complaint.createdAt)}</span>
                     </div>
                   </div>
@@ -246,31 +225,25 @@ export default function StudentDashboard() {
         </div>
 
         {/* Due Breakdown */}
-        <div className="info-card">
-          <h3 className="info-title">Due Breakdown</h3>
-          <div className="due-breakdown">
-            <div className="due-item">
-              <span>Mess Charges:</span>
-              <span>₹2000</span>
-            </div>
-            <div className="due-item">
-              <span>Room Rent:</span>
-              <span>₹2000</span>
-            </div>
-            <div className="due-item">
-              <span>Amenities Fee:</span>
-              <span>₹800</span>
-            </div>
-            <div className="due-item">
-              <span>Other Charges:</span>
-              <span>₹200</span>
-            </div>
-            <div className="due-item total">
-              <span>Total Due:</span>
-              <span>₹{totalDue}</span>
+        {recentPayments.length > 0 && (
+          <div className="info-card">
+            <h3 className="info-title">Recent Payments</h3>
+            <div className="due-breakdown">
+              {recentPayments.slice(0, 5).map((payment, index) => (
+                <div key={payment._id || index} className="due-item">
+                  <span>{payment.description || 'Payment'}:</span>
+                  <span className={payment.status === 'paid' ? 'text-success' : 'text-warning'}>
+                    ₹{payment.totalAmount?.toLocaleString() || '0'} ({payment.status || 'pending'})
+                  </span>
+                </div>
+              ))}
+              <div className="due-item total">
+                <span>Total Due:</span>
+                <span>₹{actualDue.toLocaleString()}</span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Quick Links */}
         <div className="quick-links">

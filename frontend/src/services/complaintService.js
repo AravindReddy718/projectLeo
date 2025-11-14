@@ -5,10 +5,14 @@ const complaintService = {
   getComplaints: async (filters = {}) => {
     try {
       const params = new URLSearchParams(filters).toString();
-      const response = await api.get(`/complaints?${params}`);
+      const queryString = params ? `?${params}` : '';
+      const response = await api.get(`/complaints${queryString}`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.error || 'Failed to fetch complaints');
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to fetch complaints';
+      throw new Error(errorMessage);
     }
   },
 
@@ -18,7 +22,10 @@ const complaintService = {
       const response = await api.get(`/complaints/${id}`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.error || 'Failed to fetch complaint');
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to fetch complaint';
+      throw new Error(errorMessage);
     }
   },
 
@@ -28,7 +35,10 @@ const complaintService = {
       const response = await api.post('/complaints', complaintData);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.error || 'Failed to create complaint');
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to create complaint';
+      throw new Error(errorMessage);
     }
   },
 
@@ -38,7 +48,10 @@ const complaintService = {
       const response = await api.put(`/complaints/${id}`, updateData);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.error || 'Failed to update complaint');
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to update complaint';
+      throw new Error(errorMessage);
     }
   },
 
@@ -48,7 +61,10 @@ const complaintService = {
       const response = await api.get(`/complaints?studentId=${studentId}`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.error || 'Failed to fetch student complaints');
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to fetch student complaints';
+      throw new Error(errorMessage);
     }
   }
 };
