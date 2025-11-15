@@ -64,6 +64,51 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/rooms', roomRoutes);
 
+// Seed data endpoint (admin only)
+app.post('/api/seed-data', auth, authorize('admin'), async (req, res) => {
+  try {
+    console.log('🌱 Starting data seeding from API...');
+    
+    // Clear existing data and create new data directly
+    await User.deleteMany({});
+    await Student.deleteMany({});
+    await Complaint.deleteMany({});
+    await Payment.deleteMany({});
+    await Room.deleteMany({});
+    
+    // Import the seeding functions
+    const seedCompleteData = require('./seedCompleteData');
+    
+    // Run seeding with current connection
+    const bcrypt = require('bcryptjs');
+    
+    // Create admin user
+    const adminUser = new User({
+      username: 'admin',
+      email: 'admin@iit.ac.in',
+      password: 'admin123',
+      role: 'admin',
+      profile: {
+        firstName: 'System',
+        lastName: 'Administrator'
+      }
+    });
+    await adminUser.save();
+    
+    res.json({
+      success: true,
+      message: 'Database cleared and admin user created. Please run the seed script manually for complete data.'
+    });
+  } catch (error) {
+    console.error('❌ Seeding error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to seed database',
+      error: error.message
+    });
+  }
+});
+
 // Error Handling Middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack);

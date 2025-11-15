@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
-import studentService from '../../services/studentService';
+import paymentService from '../../services/paymentService';
 import './Payments.css';
 
 export default function Payments() {
@@ -22,44 +22,34 @@ export default function Payments() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch student profile for receipt data
-      const profile = await studentService.getOwnProfile();
-      setStudentInfo(profile);
+      console.log('🔄 Fetching payment data...');
       
-      // Fetch dues and payment history
-      const duesData = await studentService.getPaymentDues();
-      const historyData = await studentService.getPaymentHistory();
+      // Fetch all payments for the student
+      const paymentsData = await paymentService.getAllPayments({ status: 'pending' });
+      const historyData = await paymentService.getAllPayments({ status: 'paid' });
       
-      setDues(Array.isArray(duesData) ? duesData : (duesData.payments || []));
-      setPaymentHistory(Array.isArray(historyData) ? historyData : (historyData.payments || []));
+      console.log('📋 Pending payments:', paymentsData);
+      console.log('📋 Payment history:', historyData);
+      
+      setDues(Array.isArray(paymentsData.payments) ? paymentsData.payments : []);
+      setPaymentHistory(Array.isArray(historyData.payments) ? historyData.payments : []);
     } catch (error) {
-      console.error('Error fetching payment data:', error);
+      console.error('❌ Error fetching payment data:', error);
       alert(error.message || 'Failed to load payment data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePayment = (due, item = null) => {
-    if (item) {
-      setSelectedBill({ 
-        ...item, 
-        month: due.month,
-        paymentId: due._id,
-        billType: item.id
-      });
-    } else {
-      // Pay all pending items
-      const pendingItems = due.items.filter(i => i.status === 'pending');
-      setSelectedBill({ 
-        id: 'all', 
-        name: 'All Bills', 
-        amount: pendingItems.reduce((sum, i) => sum + i.amount, 0),
-        month: due.month,
-        paymentId: due._id,
-        billType: 'all'
-      });
-    }
+  const handlePayment = (payment) => {
+    console.log('💳 Initiating payment for:', payment);
+    setSelectedBill({
+      _id: payment._id,
+      name: payment.description,
+      amount: payment.totalAmount,
+      type: payment.type,
+      dueDate: payment.dueDate
+    });
     setSelectedMethod(null);
     setShowModal(true);
   };
@@ -69,35 +59,34 @@ export default function Payments() {
     
     try {
       setProcessing(true);
+      console.log('💳 Processing payment...', selectedBill);
 
-      const result = await studentService.processPayment({
-        amount: selectedBill.amount,
-        description: `${selectedBill.name} - ${selectedBill.month}`,
-        paymentMethod: selectedMethod,
-        billType: selectedBill.billType
+      const result = await paymentService.clearPayment(selectedBill._id, {
+        paymentMethod: selectedMethod.toLowerCase(),
+        transactionId: `TXN-${Date.now()}`
       });
+
+      console.log('✅ Payment processed successfully:', result);
 
       // Refresh data
       await fetchData();
 
       // Generate receipt data
       setReceiptData({
-        transactionId: result.transactionId || result._id,
-        date: new Date().toISOString().split('T')[0],
+        transactionId: result.payment?.transactionId || `TXN-${Date.now()}`,
+        receiptNumber: result.payment?.receiptNumber || `RCP-${Date.now()}`,
+        date: new Date().toLocaleDateString(),
         amount: selectedBill.amount,
-        description: `${selectedBill.name} - ${selectedBill.month}`,
+        description: selectedBill.name,
         method: selectedMethod,
         status: 'success',
-        studentName: studentInfo ? `${studentInfo.personalInfo?.firstName || ''} ${studentInfo.personalInfo?.lastName || ''}`.trim() : 'Student',
-        rollNumber: studentInfo?.academicInfo?.rollNumber || studentInfo?.studentId || 'N/A',
-        hall: studentInfo?.hostelInfo?.block || 'N/A',
-        roomNo: studentInfo?.hostelInfo?.roomNumber || 'N/A'
+        type: selectedBill.type
       });
 
       setShowModal(false);
       setShowReceipt(true);
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error('❌ Payment error:', error);
       alert(error.message || 'Payment failed. Please try again.');
     } finally {
       setProcessing(false);
@@ -127,9 +116,7 @@ export default function Payments() {
     ];
   };
 
-  const totalPending = dues.reduce((sum, due) => 
-    sum + getDueItems(due).filter(item => item.status === 'pending').reduce((sum, item) => sum + item.amount, 0), 0
-  );
+  const totalPending = dues.reduce((sum, payment) => sum + (payment.totalAmount || 0), 0);
 
   return (
     <Layout>
@@ -144,7 +131,7 @@ export default function Payments() {
           </div>
           <div className="summary-item">
             <span>Pending Bills</span>
-            <strong>{dues.flatMap(d => getDueItems(d)).filter(i => i.status === 'pending').length}</strong>
+            <strong>{dues.length}</strong>
           </div>
         </div>
 
@@ -156,47 +143,31 @@ export default function Payments() {
               <div className="loading-spinner"></div>
               <p>Loading dues...</p>
             </div>
-          ) : dues.filter(d => d.status !== 'paid').length === 0 ? (
+          ) : dues.length === 0 ? (
             <p className="no-dues">No pending dues. All bills are paid! 🎉</p>
           ) : (
-            dues.filter(d => d.status !== 'paid').map(due => {
-              const dueItems = getDueItems(due);
-              const pendingItems = dueItems.filter(item => item.status === 'pending');
-              
-              return (
-                <div key={due._id || due.id} className="due-card">
-                  <div className="due-header">
-                    <h3>{due.month || due.description || 'Payment'} • {due.semester || due.period || 'N/A'}</h3>
-                    <span className={`status ${due.status}`}>{due.status}</span>
-                  </div>
-                  
-                  {pendingItems.map(item => (
-                    <div key={item.id || item._id} className="bill-item">
-                      <div>
-                        <strong>{item.name || item.description}</strong>
-                        <span>₹{item.amount || item.totalAmount || 0}</span>
-                      </div>
-                      <button 
-                        onClick={() => handlePayment(due, item)}
-                        disabled={processing}
-                      >
-                        {processing ? 'Processing...' : 'Pay Now'}
-                      </button>
-                    </div>
-                  ))}
-
-                  {pendingItems.length > 1 && (
-                    <button 
-                      className="pay-all" 
-                      onClick={() => handlePayment(due)}
-                      disabled={processing}
-                    >
-                      Pay All (₹{pendingItems.reduce((sum, i) => sum + (i.amount || i.totalAmount || 0), 0)})
-                    </button>
-                  )}
+            dues.map(payment => (
+              <div key={payment._id} className="due-card">
+                <div className="due-header">
+                  <h3>{payment.description} • {payment.type}</h3>
+                  <span className={`status ${payment.status}`}>{payment.status}</span>
                 </div>
-              );
-            })
+                
+                <div className="bill-item">
+                  <div>
+                    <strong>{payment.description}</strong>
+                    <span>₹{payment.totalAmount}</span>
+                    <small>Due: {new Date(payment.dueDate).toLocaleDateString()}</small>
+                  </div>
+                  <button 
+                    onClick={() => handlePayment(payment)}
+                    disabled={processing}
+                  >
+                    {processing ? 'Processing...' : 'Pay Now'}
+                  </button>
+                </div>
+              </div>
+            ))
           )}
         </div>
 

@@ -59,13 +59,25 @@ router.post('/register', async (req, res) => {
 // Login user
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, username, password } = req.body;
+    const loginField = email || username;
 
-    // Find user by email
-    const user = await User.findOne({ email });
+    console.log('🔐 Login attempt:', { email, username, loginField });
+
+    // Find user by email or username
+    const user = await User.findOne({
+      $or: [
+        { email: loginField },
+        { username: loginField }
+      ]
+    });
+    
     if (!user) {
+      console.log('❌ User not found for:', loginField);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+
+    console.log('✅ User found:', { username: user.username, email: user.email, role: user.role });
 
     // Check if user is active
     if (!user.isActive) {
@@ -73,10 +85,14 @@ router.post('/login', async (req, res) => {
     }
 
     // Compare password
+    console.log('🔑 Comparing password for user:', user.username);
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      console.log('❌ Password mismatch for user:', user.username);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+
+    console.log('✅ Password match successful for user:', user.username);
 
     // Generate JWT token
     const token = jwt.sign(

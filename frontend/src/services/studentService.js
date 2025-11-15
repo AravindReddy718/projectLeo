@@ -34,7 +34,7 @@ const studentService = {
   // Update student profile
   updateProfile: async (studentId, profileData) => {
     try {
-      const response = await api.put(`/students/${studentId}`, profileData);
+      const response = await api.put(`/students/profile/${studentId}`, profileData);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Failed to update profile');
@@ -118,6 +118,32 @@ const studentService = {
       const errorMessage = error.response?.data?.message || 
                           error.response?.data?.error || 
                           'Failed to fetch profile';
+      throw new Error(errorMessage);
+    }
+  },
+
+  // Create new student with credentials (admin only)
+  createStudent: async (studentData) => {
+    try {
+      const response = await api.post('/students', studentData);
+      return response.data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to create student';
+      throw new Error(errorMessage);
+    }
+  },
+
+  // Update student credentials (admin only)
+  updateStudentCredentials: async (studentId, credentialsData) => {
+    try {
+      const response = await api.put(`/students/${studentId}/credentials`, credentialsData);
+      return response.data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to update student credentials';
       throw new Error(errorMessage);
     }
   }

@@ -20,6 +20,7 @@ export default function Profile() {
     try {
       setLoading(true);
       const studentData = await studentService.getOwnProfile();
+      console.log('Student profile data:', studentData);
       setStudent(studentData);
       
       // Set profile photo if exists
@@ -47,7 +48,10 @@ export default function Profile() {
         }
       };
       
-      await studentService.updateProfile(student._id, updateData);
+      console.log('Updating profile with user ID:', student.user._id);
+      console.log('Update data:', updateData);
+      
+      await studentService.updateProfile(student.user._id, updateData);
       await fetchStudentProfile(); // Refresh profile
       setIsEditing(false);
       alert('Profile updated successfully!');

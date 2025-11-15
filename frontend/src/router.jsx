@@ -33,6 +33,7 @@ import HallReports from './pages/chairman/HallReports';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
+import StudentCredentials from './pages/admin/StudentCredentials';
 
 export default function AppRouter() {
   const { user, loading } = useAuth();
@@ -212,6 +213,12 @@ export default function AppRouter() {
       <Route path="/admin/hall-reports" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <HallReports />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/admin/student-credentials" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <StudentCredentials />
         </ProtectedRoute>
       } />
       

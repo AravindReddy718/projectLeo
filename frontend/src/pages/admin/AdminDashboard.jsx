@@ -279,6 +279,21 @@ const AdminDashboard = () => {
                       <p className="action-description">Avg resolution: {quickActionData.complaintAnalysis.avgResolutionTime} days</p>
                     </div>
                   </div>
+
+                  <div 
+                    className="action-card action-success"
+                    onClick={() => navigate('/admin/student-credentials')}
+                  >
+                    <div className="action-icon">👤</div>
+                    <div className="action-content">
+                      <h4>Student Credentials</h4>
+                      <div className="action-stats">
+                        <span className="stat-main">Manage</span>
+                        <span className="stat-sub">Login Access</span>
+                      </div>
+                      <p className="action-description">Create and manage student login credentials</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

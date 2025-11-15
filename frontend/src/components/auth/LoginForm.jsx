@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import './LoginForm.css'
 
 function LoginForm() {
-  const [email, setEmail] = useState('')
+  const [emailOrUsername, setEmailOrUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -19,7 +19,13 @@ function LoginForm() {
     setError('')
     
     try {
-      const result = await login({ email, password })
+      // Determine if input is email or username
+      const isEmail = emailOrUsername.includes('@')
+      const loginData = isEmail 
+        ? { email: emailOrUsername, password }
+        : { username: emailOrUsername, password }
+      
+      const result = await login(loginData)
       
       if (result && result.success && result.user) {
         console.log('Login successful, user:', result.user)
@@ -50,13 +56,13 @@ function LoginForm() {
         {error && <div className="error-message">{error}</div>}
         
         <div className="form-group">
-          <label htmlFor="email">Email Address</label>
+          <label htmlFor="emailOrUsername">Email or Username</label>
           <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email"
+            id="emailOrUsername"
+            type="text"
+            value={emailOrUsername}
+            onChange={(e) => setEmailOrUsername(e.target.value)}
+            placeholder="Enter your email or username"
             required
             disabled={loading}
           />
