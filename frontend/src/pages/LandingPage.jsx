@@ -53,7 +53,7 @@ const LandingPage = () => {
                 <span className="stat-label">Students</span>
               </div>
               <div className="stat-item">
-                <span className="stat-number">15+</span>
+                <span className="stat-number">5+</span>
                 <span className="stat-label">Hostels</span>
               </div>
               <div className="stat-item">
