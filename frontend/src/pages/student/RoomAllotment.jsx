@@ -1,18 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
+import studentService from '../../services/studentService';
 import './RoomAllotment.css';
-
-const API_BASE_URL = 'http://localhost:5000/api';
-// Change this line to use your actual student ID
-const studentId = '690256e03cf868dd730c2b15';
 
 export default function RoomAllotment() {
   const [allotment, setAllotment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Get student ID from auth (mock for now)
-  const studentId = '65a1b2c3d4e5f67890123456';
 
   useEffect(() => {
     fetchRoomAllotment();   
@@ -22,20 +16,29 @@ export default function RoomAllotment() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`${API_BASE_URL}/students/${studentId}/room-allotment`);
       
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('Room allotment not found');
-        }
-        throw new Error('Failed to fetch room allotment');
+      // Get student profile which contains room allotment info
+      const studentData = await studentService.getOwnProfile();
+      
+      // Transform student data into allotment format
+      if (studentData && studentData.hostelInfo) {
+        setAllotment({
+          studentName: `${studentData.personalInfo?.firstName || ''} ${studentData.personalInfo?.lastName || ''}`.trim(),
+          rollNumber: studentData.academicInfo?.rollNumber || studentData.studentId,
+          hall: studentData.hostelInfo.block || 'N/A',
+          roomNo: studentData.hostelInfo.roomNumber || 'N/A',
+          roomType: 'Standard',
+          roomRent: 750, // This should come from fees or a separate API
+          dateOfAllotment: studentData.hostelInfo.checkInDate || new Date(),
+          validUntil: studentData.hostelInfo.checkOutDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+          wardenName: 'Hall Warden' // This should come from API
+        });
+      } else {
+        throw new Error('Room allotment information not available');
       }
-      
-      const allotmentData = await response.json();
-      setAllotment(allotmentData);
     } catch (error) {
       console.error('Error fetching room allotment:', error);
-      setError(error.message);
+      setError(error.message || 'Failed to fetch room allotment');
     } finally {
       setLoading(false);
     }
@@ -46,13 +49,228 @@ export default function RoomAllotment() {
   };
 
   const downloadPDF = () => {
-    // In real app, this would generate and download PDF
-    alert('PDF download functionality would be implemented here');
+    // Create a clean HTML version of the letter for PDF
+    const letterHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Room Allotment Letter - ${allotment.studentName}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            color: #333;
+          }
+          .letter-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+          }
+          .letter-header h1 {
+            margin: 0;
+            color: #1e40af;
+            font-size: 24px;
+          }
+          .letter-header p {
+            margin: 5px 0;
+            font-size: 14px;
+          }
+          .letter-meta {
+            margin-bottom: 20px;
+            font-size: 12px;
+          }
+          .addressee {
+            margin-bottom: 20px;
+          }
+          .letter-body {
+            line-height: 1.6;
+            margin-bottom: 30px;
+          }
+          .allotment-details {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #1e40af;
+          }
+          .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+          }
+          .detail-row:last-child {
+            border-bottom: none;
+          }
+          .important-points {
+            margin: 20px 0;
+            padding-left: 20px;
+          }
+          .important-points li {
+            margin-bottom: 8px;
+          }
+          .letter-footer {
+            margin-top: 50px;
+            border-top: 1px solid #333;
+            padding-top: 20px;
+          }
+          .signature-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+          }
+          .signature-space {
+            text-align: center;
+          }
+          .official-stamp {
+            text-align: center;
+            margin-top: 30px;
+          }
+          .stamp-area {
+            border: 2px solid #333;
+            padding: 10px;
+            display: inline-block;
+            font-weight: bold;
+            color: #1e40af;
+          }
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="letter-header">
+          <h1>INDIAN INSTITUTE OF TECHNOLOGY</h1>
+          <p>HOSTEL MANAGEMENT CENTER</p>
+          <p>Room Allotment Letter</p>
+        </div>
+
+        <div class="letter-meta">
+          <p><strong>Date:</strong> ${new Date(allotment.dateOfAllotment).toLocaleDateString()}</p>
+          <p><strong>Ref No:</strong> ALLOT/${allotment.hall}/${allotment.roomNo}/2024</p>
+        </div>
+
+        <div class="addressee">
+          <p>To,</p>
+          <p><strong>${allotment.studentName}</strong></p>
+          <p>Roll No: ${allotment.rollNumber}</p>
+        </div>
+
+        <div class="letter-body">
+          <p>Dear <strong>${allotment.studentName}</strong>,</p>
+          
+          <p>
+            We are pleased to inform you that you have been allotted accommodation 
+            in the institute hostel for the academic year 2024-25. The details of 
+            your accommodation are as follows:
+          </p>
+
+          <div class="allotment-details">
+            <div class="detail-row">
+              <span><strong>Hall of Residence:</strong></span>
+              <span>${allotment.hall}</span>
+            </div>
+            <div class="detail-row">
+              <span><strong>Room Number:</strong></span>
+              <span>${allotment.roomNo}</span>
+            </div>
+            <div class="detail-row">
+              <span><strong>Room Type:</strong></span>
+              <span>${allotment.roomType}</span>
+            </div>
+            <div class="detail-row">
+              <span><strong>Monthly Rent:</strong></span>
+              <span>₹${allotment.roomRent} per month</span>
+            </div>
+            <div class="detail-row">
+              <span><strong>Date of Allotment:</strong></span>
+              <span>${new Date(allotment.dateOfAllotment).toLocaleDateString()}</span>
+            </div>
+            <div class="detail-row">
+              <span><strong>Valid Until:</strong></span>
+              <span>${new Date(allotment.validUntil).toLocaleDateString()}</span>
+            </div>
+          </div>
+
+          <p>
+            Please note the following important points:
+          </p>
+          <ul class="important-points">
+            <li>You must report to the Hall Warden within 3 days of receiving this letter</li>
+            <li>Carry this allotment letter and your institute ID card when reporting</li>
+            <li>Room rent is payable monthly along with mess charges</li>
+            <li>Any damage to room property will be charged separately</li>
+            <li>Follow all hostel rules and regulations strictly</li>
+          </ul>
+
+          <p>
+            For any queries regarding your accommodation, please contact the 
+            Hall Warden or Hall Office.
+          </p>
+
+          <p>Welcome to IIT Hostels and wish you a pleasant stay!</p>
+        </div>
+
+        <div class="letter-footer">
+          <div class="signature-section">
+            <div class="warden-details">
+              <p><strong>${allotment.wardenName}</strong></p>
+              <p>Warden, ${allotment.hall}</p>
+              <p>IIT Hostel Management Center</p>
+            </div>
+            <div class="signature-space">
+              <p>Signature: ________________</p>
+              <p>Date: ________________</p>
+            </div>
+          </div>
+
+          <div class="official-stamp">
+            <div class="stamp-area">
+              <p>OFFICIAL STAMP</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Create a new window and write the HTML
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(letterHTML);
+    printWindow.document.close();
+    
+    // Wait for the content to load, then trigger print
+    printWindow.onload = function() {
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 500);
+    };
   };
 
   const shareViaEmail = () => {
-    // In real app, this would share via email
-    alert('Email sharing functionality would be implemented here');
+    const subject = encodeURIComponent(`Room Allotment Letter - ${allotment.studentName}`);
+    const body = encodeURIComponent(
+      `Dear ${allotment.studentName},\n\n` +
+      `Your room allotment details are as follows:\n\n` +
+      `Hall of Residence: ${allotment.hall}\n` +
+      `Room Number: ${allotment.roomNo}\n` +
+      `Room Type: ${allotment.roomType}\n` +
+      `Monthly Rent: ₹${allotment.roomRent} per month\n` +
+      `Date of Allotment: ${new Date(allotment.dateOfAllotment).toLocaleDateString()}\n` +
+      `Valid Until: ${new Date(allotment.validUntil).toLocaleDateString()}\n\n` +
+      `Please carry this allotment letter and your institute ID card when reporting to the Hall Warden.\n\n` +
+      `For any queries, please contact the Hall Warden or Hall Office.\n\n` +
+      `Welcome to IIT Hostels!\n\n` +
+      `IIT Hostel Management Center`
+    );
+    
+    // Open email client with pre-filled content
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
   if (loading) {

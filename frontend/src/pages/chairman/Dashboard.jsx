@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
+import chairmanService from '../../services/chairmanService';
 import './ChairmanDashboard.css';
 
 const ChairmanDashboard = () => {
@@ -17,36 +18,74 @@ const ChairmanDashboard = () => {
   
   const [recentActivities, setRecentActivities] = useState([]);
   const [hallWiseData, setHallWiseData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Mock data - replace with API calls
-    setDashboardStats({
-      totalStudents: 3247,
-      totalWardens: 12,
-      totalComplaints: 156,
-      resolvedComplaints: 128,
-      pendingComplaints: 28,
-      totalRevenue: 2456700,
-      occupancyRate: 92.5,
-      avgResolutionTime: 2.3
-    });
-
-    setRecentActivities([
-      { id: 1, type: 'complaint', message: 'High priority complaint resolved in Hall 3', time: '2 hours ago', hall: 'Hall 3' },
-      { id: 2, type: 'financial', message: 'Monthly revenue report generated', time: '4 hours ago', hall: 'All' },
-      { id: 3, type: 'student', message: 'New student allocation in Hall 5', time: '6 hours ago', hall: 'Hall 5' },
-      { id: 4, type: 'maintenance', message: 'Quarterly maintenance scheduled', time: '1 day ago', hall: 'All' }
-    ]);
-
-    setHallWiseData([
-      { hall: 'Hall 1', students: 280, complaints: 12, resolutionRate: 85, revenue: 245000 },
-      { hall: 'Hall 2', students: 265, complaints: 8, resolutionRate: 92, revenue: 231000 },
-      { hall: 'Hall 3', students: 310, complaints: 15, resolutionRate: 78, revenue: 268000 },
-      { hall: 'Hall 4', students: 295, complaints: 10, resolutionRate: 88, revenue: 252000 },
-      { hall: 'Hall 5', students: 275, complaints: 7, resolutionRate: 95, revenue: 238000 }
-    ]);
+    fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const overview = await chairmanService.getDashboardOverview();
+      const performance = await chairmanService.getPerformanceMetrics();
+      const roomOccupancy = await chairmanService.getRoomOccupancy();
+      
+      // Set dashboard stats from API
+      setDashboardStats({
+        totalStudents: overview.overview?.totalStudents || 0,
+        totalWardens: overview.overview?.totalUsers || 0,
+        totalComplaints: overview.overview?.totalComplaints || 0,
+        resolvedComplaints: overview.overview?.resolvedComplaints || 0,
+        pendingComplaints: overview.overview?.pendingComplaints || 0,
+        totalRevenue: overview.financial?.totalRevenue || 0,
+        occupancyRate: 0, // Calculate from room data
+        avgResolutionTime: performance.resolutionStats?.avgResolutionTime || 0
+      });
+
+      // Set recent activities from API
+      const activities = [];
+      if (overview.recentActivities?.recentComplaints) {
+        overview.recentActivities.recentComplaints.forEach(complaint => {
+          activities.push({
+            id: complaint._id,
+            type: 'complaint',
+            message: `Complaint: ${complaint.title}`,
+            time: new Date(complaint.createdAt).toLocaleString(),
+            hall: complaint.student?.hostelInfo?.block || 'N/A'
+          });
+        });
+      }
+      if (overview.recentActivities?.recentPayments) {
+        overview.recentActivities.recentPayments.forEach(payment => {
+          activities.push({
+            id: payment._id,
+            type: 'financial',
+            message: `Payment: ₹${payment.totalAmount}`,
+            time: new Date(payment.paidDate || payment.createdAt).toLocaleString(),
+            hall: 'All'
+          });
+        });
+      }
+      setRecentActivities(activities.slice(0, 10));
+
+      // Set hall-wise data from room occupancy
+      const hallData = roomOccupancy.blockStats?.map(block => ({
+        hall: block._id || 'Unknown',
+        students: block.count || 0,
+        complaints: 0, // Would need separate API call
+        resolutionRate: 0,
+        revenue: 0
+      })) || [];
+      setHallWiseData(hallData);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      alert(error.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getPerformanceColor = (rate) => {
     if (rate >= 90) return 'excellent';
@@ -54,6 +93,18 @@ const ChairmanDashboard = () => {
     if (rate >= 70) return 'average';
     return 'poor';
   };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="chairman-dashboard">
+          <div className="loading-container">
+            <p>Loading dashboard...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -79,7 +130,11 @@ const ChairmanDashboard = () => {
             <div className="metric-content">
               <h3>Complaints Resolved</h3>
               <p className="metric-value">{dashboardStats.resolvedComplaints}</p>
-              <p className="metric-label">{((dashboardStats.resolvedComplaints / dashboardStats.totalComplaints) * 100).toFixed(1)}% resolution rate</p>
+              <p className="metric-label">
+                {dashboardStats.totalComplaints > 0 
+                  ? `${((dashboardStats.resolvedComplaints / dashboardStats.totalComplaints) * 100).toFixed(1)}% resolution rate`
+                  : 'No complaints yet'}
+              </p>
             </div>
           </div>
 
@@ -115,7 +170,10 @@ const ChairmanDashboard = () => {
               </button>
             </div>
             <div className="hall-performance">
-              {hallWiseData.map(hall => (
+              {hallWiseData.length === 0 ? (
+                <p>No hall data available</p>
+              ) : (
+                hallWiseData.map(hall => (
                 <div key={hall.hall} className="hall-card">
                   <div className="hall-header">
                     <h4>{hall.hall}</h4>
@@ -138,7 +196,8 @@ const ChairmanDashboard = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </div>
 
@@ -180,7 +239,10 @@ const ChairmanDashboard = () => {
               <div className="content-section">
                 <h3>Recent Activities</h3>
                 <div className="activities-list">
-                  {recentActivities.map(activity => (
+                  {recentActivities.length === 0 ? (
+                    <p>No recent activities</p>
+                  ) : (
+                    recentActivities.map(activity => (
                     <div key={activity.id} className="activity-item">
                       <div className="activity-icon">
                         {activity.type === 'complaint' && '🛠️'}
@@ -195,7 +257,8 @@ const ChairmanDashboard = () => {
                         </span>
                       </div>
                     </div>
-                  ))}
+                  ))
+                  )}
                 </div>
               </div>
             </div>

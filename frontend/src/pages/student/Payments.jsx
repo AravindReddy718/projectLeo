@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
+import paymentService from '../../services/paymentService';
 import './Payments.css';
-
-const API_BASE_URL = 'http://localhost:5000/api';
-// Change this line to use your actual student ID
-const studentId = '690256e03cf868dd730c2b15';
 
 export default function Payments() {
   const [dues, setDues] = useState([]);
   const [paymentHistory, setPaymentHistory] = useState([]);
+  const [studentInfo, setStudentInfo] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
@@ -17,60 +15,41 @@ export default function Payments() {
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
 
-  // Get student ID from auth (mock for now)
-  const studentId = '65a1b2c3d4e5f67890123456';
-
   useEffect(() => {
-    fetchDues();
-    fetchPaymentHistory();
+    fetchData();
   }, []);
 
-  const fetchDues = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/payments/dues?studentId=${studentId}`);
-      if (!response.ok) throw new Error('Failed to fetch dues');
-      const data = await response.json();
-      setDues(data);
+      console.log('🔄 Fetching payment data...');
+      
+      // Fetch all payments for the student
+      const paymentsData = await paymentService.getAllPayments({ status: 'pending' });
+      const historyData = await paymentService.getAllPayments({ status: 'paid' });
+      
+      console.log('📋 Pending payments:', paymentsData);
+      console.log('📋 Payment history:', historyData);
+      
+      setDues(Array.isArray(paymentsData.payments) ? paymentsData.payments : []);
+      setPaymentHistory(Array.isArray(historyData.payments) ? historyData.payments : []);
     } catch (error) {
-      console.error('Error fetching dues:', error);
-      alert('Failed to load dues');
+      console.error('❌ Error fetching payment data:', error);
+      alert(error.message || 'Failed to load payment data');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchPaymentHistory = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/payments/history?studentId=${studentId}`);
-      if (!response.ok) throw new Error('Failed to fetch payment history');
-      const data = await response.json();
-      setPaymentHistory(data);
-    } catch (error) {
-      console.error('Error fetching payment history:', error);
-    }
-  };
-
-  const handlePayment = (due, item = null) => {
-    if (item) {
-      setSelectedBill({ 
-        ...item, 
-        month: due.month,
-        paymentId: due._id,
-        billType: item.id
-      });
-    } else {
-      // Pay all pending items
-      const pendingItems = due.items.filter(i => i.status === 'pending');
-      setSelectedBill({ 
-        id: 'all', 
-        name: 'All Bills', 
-        amount: pendingItems.reduce((sum, i) => sum + i.amount, 0),
-        month: due.month,
-        paymentId: due._id,
-        billType: 'all'
-      });
-    }
+  const handlePayment = (payment) => {
+    console.log('💳 Initiating payment for:', payment);
+    setSelectedBill({
+      _id: payment._id,
+      name: payment.description,
+      amount: payment.totalAmount,
+      type: payment.type,
+      dueDate: payment.dueDate
+    });
     setSelectedMethod(null);
     setShowModal(true);
   };
@@ -80,51 +59,34 @@ export default function Payments() {
     
     try {
       setProcessing(true);
-      
-      const response = await fetch(`${API_BASE_URL}/payments/pay`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentId: studentId,
-          paymentId: selectedBill.paymentId,
-          amount: selectedBill.amount,
-          description: `${selectedBill.name} - ${selectedBill.month}`,
-          paymentMethod: selectedMethod,
-          billType: selectedBill.billType
-        }),
+      console.log('💳 Processing payment...', selectedBill);
+
+      const result = await paymentService.clearPayment(selectedBill._id, {
+        paymentMethod: selectedMethod.toLowerCase(),
+        transactionId: `TXN-${Date.now()}`
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Payment failed');
-      }
-
-      const result = await response.json();
+      console.log('✅ Payment processed successfully:', result);
 
       // Refresh data
-      await fetchDues();
-      await fetchPaymentHistory();
+      await fetchData();
 
       // Generate receipt data
       setReceiptData({
-        transactionId: result.transactionId,
-        date: new Date().toISOString().split('T')[0],
+        transactionId: result.payment?.transactionId || `TXN-${Date.now()}`,
+        receiptNumber: result.payment?.receiptNumber || `RCP-${Date.now()}`,
+        date: new Date().toLocaleDateString(),
         amount: selectedBill.amount,
-        description: `${selectedBill.name} - ${selectedBill.month}`,
+        description: selectedBill.name,
         method: selectedMethod,
         status: 'success',
-        studentName: "Amit Kumar", // This should come from student data
-        rollNumber: "2024CS10001",
-        hall: "Hall 5",
-        roomNo: "G-102"
+        type: selectedBill.type
       });
 
       setShowModal(false);
       setShowReceipt(true);
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error('❌ Payment error:', error);
       alert(error.message || 'Payment failed. Please try again.');
     } finally {
       setProcessing(false);
@@ -136,11 +98,16 @@ export default function Payments() {
   };
 
   const getDueItems = (due) => {
+    // Handle different payment structures
+    if (due.items && Array.isArray(due.items)) {
+      return due.items;
+    }
+    // Fallback for old structure
     return [
-      { id: 'messCharges', name: 'Mess Charges', amount: due.messCharges.amount, status: due.messCharges.status },
-      { id: 'roomRent', name: 'Room Rent', amount: due.roomRent.amount, status: due.roomRent.status },
-      { id: 'amenitiesFee', name: 'Amenities Fee', amount: due.amenitiesFee.amount, status: due.amenitiesFee.status },
-      ...(due.otherCharges.amount > 0 ? [{ 
+      { id: 'messCharges', name: 'Mess Charges', amount: due.messCharges?.amount || 0, status: due.messCharges?.status || 'pending' },
+      { id: 'roomRent', name: 'Room Rent', amount: due.roomRent?.amount || 0, status: due.roomRent?.status || 'pending' },
+      { id: 'amenitiesFee', name: 'Amenities Fee', amount: due.amenitiesFee?.amount || 0, status: due.amenitiesFee?.status || 'pending' },
+      ...(due.otherCharges?.amount > 0 ? [{ 
         id: 'otherCharges', 
         name: due.otherCharges.description || 'Other Charges', 
         amount: due.otherCharges.amount, 
@@ -149,9 +116,7 @@ export default function Payments() {
     ];
   };
 
-  const totalPending = dues.reduce((sum, due) => 
-    sum + getDueItems(due).filter(item => item.status === 'pending').reduce((sum, item) => sum + item.amount, 0), 0
-  );
+  const totalPending = dues.reduce((sum, payment) => sum + (payment.totalAmount || 0), 0);
 
   return (
     <Layout>
@@ -166,7 +131,7 @@ export default function Payments() {
           </div>
           <div className="summary-item">
             <span>Pending Bills</span>
-            <strong>{dues.flatMap(d => getDueItems(d)).filter(i => i.status === 'pending').length}</strong>
+            <strong>{dues.length}</strong>
           </div>
         </div>
 
@@ -178,47 +143,31 @@ export default function Payments() {
               <div className="loading-spinner"></div>
               <p>Loading dues...</p>
             </div>
-          ) : dues.filter(d => d.status !== 'paid').length === 0 ? (
+          ) : dues.length === 0 ? (
             <p className="no-dues">No pending dues. All bills are paid! 🎉</p>
           ) : (
-            dues.filter(d => d.status !== 'paid').map(due => {
-              const dueItems = getDueItems(due);
-              const pendingItems = dueItems.filter(item => item.status === 'pending');
-              
-              return (
-                <div key={due._id} className="due-card">
-                  <div className="due-header">
-                    <h3>{due.month} • {due.semester}</h3>
-                    <span className={`status ${due.status}`}>{due.status}</span>
-                  </div>
-                  
-                  {pendingItems.map(item => (
-                    <div key={item.id} className="bill-item">
-                      <div>
-                        <strong>{item.name}</strong>
-                        <span>₹{item.amount}</span>
-                      </div>
-                      <button 
-                        onClick={() => handlePayment(due, item)}
-                        disabled={processing}
-                      >
-                        {processing ? 'Processing...' : 'Pay Now'}
-                      </button>
-                    </div>
-                  ))}
-
-                  {pendingItems.length > 1 && (
-                    <button 
-                      className="pay-all" 
-                      onClick={() => handlePayment(due)}
-                      disabled={processing}
-                    >
-                      Pay All (₹{pendingItems.reduce((sum, i) => sum + i.amount, 0)})
-                    </button>
-                  )}
+            dues.map(payment => (
+              <div key={payment._id} className="due-card">
+                <div className="due-header">
+                  <h3>{payment.description} • {payment.type}</h3>
+                  <span className={`status ${payment.status}`}>{payment.status}</span>
                 </div>
-              );
-            })
+                
+                <div className="bill-item">
+                  <div>
+                    <strong>{payment.description}</strong>
+                    <span>₹{payment.totalAmount}</span>
+                    <small>Due: {new Date(payment.dueDate).toLocaleDateString()}</small>
+                  </div>
+                  <button 
+                    onClick={() => handlePayment(payment)}
+                    disabled={processing}
+                  >
+                    {processing ? 'Processing...' : 'Pay Now'}
+                  </button>
+                </div>
+              </div>
+            ))
           )}
         </div>
 

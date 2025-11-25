@@ -17,10 +17,12 @@ function Login() {
         <LoginForm />
         
         <div className="login-footer">
-          <p><strong>Test Credentials:</strong></p>
+          <p><strong>Login Information:</strong></p>
           <div className="credentials">
-            <p>student@iit.ac.in | warden@iit.ac.in | admin@iit.ac.in</p>
-            <p><strong>Password:</strong> password123</p>
+            <p><strong>Admin:</strong> admin / admin123</p>
+            <p><strong>Warden:</strong> warden / warden123</p>
+            <p><strong>Students:</strong> Use credentials provided by admin</p>
+            <p><em>You can use either email or username to login</em></p>
           </div>
         </div>
       </div>

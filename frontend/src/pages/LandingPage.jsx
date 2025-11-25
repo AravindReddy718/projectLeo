@@ -15,7 +15,7 @@ const LandingPage = () => {
             <div className="logo-icon">
               <i className="fas fa-university"></i>
             </div>
-            <span className="logo-text">IIT Hostel Management</span>
+            <span className="logo-text">IIT HMC Portal</span>
           </div>
           <ul className="nav-menu">
             <li className="nav-item">
@@ -40,7 +40,7 @@ const LandingPage = () => {
           {/* Left Side - Text Content */}
           <div className="text-content">
             <h1 className="main-heading">
-              Welcome to Hostel Management System
+              Welcome to Hall Management Portal...
             </h1>
             <p className="description">
               Access all hostel services and resources in one place. Manage your accommodation, 

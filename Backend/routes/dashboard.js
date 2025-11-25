@@ -23,7 +23,7 @@ router.get('/overview', auth, authorize('admin', 'warden'), async (req, res) => 
 
     // Get payment stats
     const pendingPayments = await Payment.countDocuments({ status: 'pending' });
-    const paidPayments = await Payment.countDocuments({ status: 'paid' });
+    const completedPayments = await Payment.countDocuments({ status: 'completed' });
     const overduePayments = await Payment.countDocuments({
       status: 'pending',
       dueDate: { $lt: new Date() }
@@ -34,15 +34,15 @@ router.get('/overview', auth, authorize('admin', 'warden'), async (req, res) => 
       {
         $group: {
           _id: null,
-          totalRevenue: { $sum: '$totalAmount' },
+          totalRevenue: { $sum: '$amount' },
           collectedRevenue: {
             $sum: {
-              $cond: [{ $eq: ['$status', 'paid'] }, '$totalAmount', 0]
+              $cond: [{ $eq: ['$status', 'completed'] }, '$amount', 0]
             }
           },
           pendingRevenue: {
             $sum: {
-              $cond: [{ $eq: ['$status', 'pending'] }, '$totalAmount', 0]
+              $cond: [{ $eq: ['$status', 'pending'] }, '$amount', 0]
             }
           }
         }
@@ -94,7 +94,7 @@ router.get('/overview', auth, authorize('admin', 'warden'), async (req, res) => 
         inProgressComplaints,
         resolvedComplaints,
         pendingPayments,
-        paidPayments,
+        completedPayments,
         overduePayments
       },
       financial: financialStats[0] || {

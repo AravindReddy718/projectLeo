@@ -359,6 +359,66 @@ router.post('/:id/receipt', auth, authorize('admin', 'warden'), async (req, res)
   }
 });
 
+// Student payment clearing (student can mark their own payment as paid)
+router.post('/:id/student-pay', auth, async (req, res) => {
+  try {
+    const { paymentMethod, transactionId } = req.body;
+    
+    console.log('💳 Student payment clearing attempt...');
+    console.log('Payment ID:', req.params.id);
+    console.log('User ID:', req.user._id);
+    console.log('Payment method:', paymentMethod);
+    
+    const payment = await Payment.findById(req.params.id)
+      .populate('student', 'user');
+    
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+
+    // Check if this payment belongs to the logged-in student
+    if (req.user.role === 'student') {
+      if (payment.student.user.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Access denied - not your payment' });
+      }
+    }
+
+    if (payment.status === 'paid') {
+      return res.status(400).json({ message: 'Payment is already cleared' });
+    }
+
+    // Update payment status
+    payment.status = 'paid';
+    payment.paidDate = new Date();
+    payment.paymentMethod = paymentMethod || 'online';
+    payment.transactionId = transactionId;
+    payment.receiptNumber = `RCP-${Date.now()}`;
+    payment.paidBy = req.user._id;
+
+    await payment.save();
+    await payment.populate([
+      { path: 'student', select: 'studentId personalInfo.firstName personalInfo.lastName hostelInfo.roomNumber' },
+      { path: 'paidBy', select: 'username email' }
+    ]);
+
+    // Update student's fee information
+    const student = await Student.findById(payment.student._id);
+    student.fees.paidFees += payment.totalAmount;
+    student.fees.pendingFees = student.fees.totalFees - student.fees.paidFees;
+    await student.save();
+
+    console.log('✅ Payment cleared successfully by student');
+
+    res.json({
+      message: 'Payment cleared successfully',
+      payment
+    });
+  } catch (error) {
+    console.error('❌ Student payment clearing error:', error);
+    res.status(500).json({ message: 'Failed to clear payment' });
+  }
+});
+
 // Delete payment (admin only)
 router.delete('/:id', auth, authorize('admin'), async (req, res) => {
   try {

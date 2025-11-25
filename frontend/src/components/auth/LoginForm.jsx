@@ -1,31 +1,48 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import './LoginForm.css'
 
 function LoginForm() {
-  const [email, setEmail] = useState('')
+  const [emailOrUsername, setEmailOrUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const location = useLocation()
   const { login } = useAuth()
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault() // Prevent form default submission - CRITICAL for React Router
     
     setLoading(true)
     setError('')
     
     try {
-      const result = await login({ email, password })
+      // Determine if input is email or username
+      const isEmail = emailOrUsername.includes('@')
+      const loginData = isEmail 
+        ? { email: emailOrUsername, password }
+        : { username: emailOrUsername, password }
       
-      if (result.success) {
-        console.log('Login successful, navigating to:', `/${result.user.role}/dashboard`)
-        navigate(`/${result.user.role}/dashboard`)
+      const result = await login(loginData)
+      
+      if (result && result.success && result.user) {
+        console.log('Login successful, user:', result.user)
+        
+        // Get return path from location state (if redirected from protected route)
+        // location.state.from is set by ProtectedRoute when redirecting unauthenticated users
+        const returnPath = location.state?.from || `/${result.user.role}/dashboard`
+        
+        console.log('Navigating to:', returnPath)
+        // Use replace to prevent back navigation to login
+        navigate(returnPath, { replace: true })
+      } else {
+        setError('Login failed. Please check your credentials.')
       }
     } catch (err) {
-      setError(err.message)
+      console.error('Login error:', err)
+      setError(err.message || 'Login failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -39,13 +56,13 @@ function LoginForm() {
         {error && <div className="error-message">{error}</div>}
         
         <div className="form-group">
-          <label htmlFor="email">Email Address</label>
+          <label htmlFor="emailOrUsername">Email or Username</label>
           <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email"
+            id="emailOrUsername"
+            type="text"
+            value={emailOrUsername}
+            onChange={(e) => setEmailOrUsername(e.target.value)}
+            placeholder="Enter your email or username"
             required
             disabled={loading}
           />
